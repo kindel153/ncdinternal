@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Field Crew Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --board-bg:#EDEAE2;
+    --board-line:#D9D4C7;
+    --ink:#22262B;
+    --ink-soft:#5A5F66;
+    --header-bg:#20242B;
+    --header-text:#F4F1E8;
+    --card-bg:#FFFDF8;
+    --paper-shadow:2px 2px 0 rgba(34,38,43,0.16);
+    --paper-shadow-hover:3px 3px 0 rgba(34,38,43,0.22);
+    --accent:#B5563C;
+    --danger:#A8402C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(var(--board-line) 1px, transparent 1px) 0 0/22px 22px,
+      var(--board-bg);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    padding:24px 24px 60px;
+  }
+  .topbar{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:8px;
+    padding-bottom:14px;
+    border-bottom:3px solid var(--ink);
+    flex-wrap:wrap;
+  }
+  .title-block h1{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    font-size:28px;
+    letter-spacing:0.3px;
+    margin:0;
+  }
+  .title-block a{
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:11.5px;
+    letter-spacing:0.4px;color:var(--ink-soft);text-decoration:none;
+  }
+  .title-block p{
+    margin:6px 0 0;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .topbar-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  button{font-family:'IBM Plex Sans', sans-serif;cursor:pointer;}
+  .btn{
+    border:2px solid var(--ink);
+    background:var(--card-bg);
+    color:var(--ink);
+    font-size:12.5px;
+    font-weight:600;
+    padding:7px 12px;
+    border-radius:2px;
+    box-shadow:var(--paper-shadow);
+  }
+  .btn:hover{transform:translate(-1px,-1px);box-shadow:var(--paper-shadow-hover);}
+  .btn.primary{background:var(--ink);color:var(--header-text);}
+  .sync-note{font-size:11.5px;color:var(--ink-soft);margin:8px 0 16px;}
+
+  /* ============ GRID ============ */
+  .grid-wrap{
+    overflow:auto;
+    max-height:78vh;
+    border:1.5px solid var(--board-line);
+    background:var(--card-bg);
+  }
+  table.grid{
+    border-collapse:separate;
+    border-spacing:0;
+    width:100%;
+  }
+  .corner{
+    position:sticky; top:0; left:0; z-index:5;
+    background:var(--header-bg);
+    min-width:170px;
+  }
+  th.week-head{
+    position:sticky; top:0; z-index:3;
+    background:var(--header-bg);
+    color:var(--header-text);
+    padding:9px 10px;
+    min-width:150px;
+    border-left:1px solid #3A3F47;
+    text-align:left;
+  }
+  .week-title{
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:13.5px;
+    letter-spacing:0.2px;background:transparent;border:none;color:var(--header-text);
+    outline:none;width:100%;padding:1px 0;
+  }
+  .week-date-input{
+    font-family:'IBM Plex Sans',sans-serif; font-size:11px;
+    background:#2E3239; border:1px solid #444951; border-radius:2px;
+    color:var(--header-text); padding:2px 4px; width:100%;
+    color-scheme: dark;
+  }
+  .week-daystrip{
+    display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;
+  }
+  .daystrip-day{
+    font-size:9px; font-weight:600; color:#B9B4A6;
+    background:#2E3239; border-radius:2px; padding:2px 4px;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+  .week-nodate{ font-size:10.5px; color:#8A8F98; font-style:italic; margin-top:4px; }
+  .col-actions{display:flex;justify-content:flex-end;margin-top:2px;}
+  .mini-x{background:none;border:none;color:#C9A79C;font-size:14px;line-height:1;padding:0 2px;opacity:.7;}
+  .mini-x:hover{opacity:1;color:#fff;}
+  .mini-move{background:none;border:none;color:#9CA0A6;font-size:11px;line-height:1;padding:0 2px;opacity:.75;}
+  .mini-move:hover{opacity:1;color:#fff;}
+  .mini-move:disabled{opacity:.2;cursor:default;}
+  .add-week-cell{
+    position:sticky; top:0; z-index:3;
+    background:var(--header-bg);
+    padding:6px;
+    vertical-align:middle;
+    min-width:80px;
+  }
+  .add-week-cell button{
+    width:100%;height:100%;min-height:38px;
+    border:1.5px dashed #565B63;background:transparent;color:#B9B4A6;
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:12px;border-radius:2px;
+  }
+  .add-week-cell button:hover{border-color:#fff;color:#fff;}
+
+  td.district-head{
+    position:sticky; left:0; z-index:2;
+    background:var(--header-bg);
+    color:var(--header-text);
+    padding:8px 10px;
+    vertical-align:middle;
+    border-top:1px solid #3A3F47;
+  }
+  td.district-head.bench-head{ background:#565B63; }
+  .district-title{
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:13px;
+    letter-spacing:0.2px;background:transparent;border:none;color:var(--header-text);
+    outline:none;width:100%;
+  }
+  .district-row-actions{display:flex;justify-content:space-between;align-items:center;gap:4px;}
+
+  /* ============ BENCH SHELF ============ */
+  .bench-label-row td{
+    position:sticky; left:0; z-index:2;
+    background:var(--board-bg);
+    padding-top:14px;
+    border:none;
+  }
+  .bench-eyebrow{
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:10.5px;
+    letter-spacing:1px; color:var(--ink-soft);
+  }
+  tr.bench-row td.cell{ background:#F1EFE8; }
+  tr.bench-row td.cell.has-techs{ background:#EDE6D2; }
+  tr.bench-row{ border-bottom:3px solid var(--ink); }
+  .bench-collapse-btn{
+    background:none;border:1px solid #7A7F87;color:var(--header-text);
+    font-size:11px;line-height:1;padding:2px 6px;border-radius:2px;
+  }
+  .bench-collapse-btn:hover{background:#6A6F77;}
+  .bench-collapsed-hint{
+    font-size:11px; color:var(--ink-soft); font-style:italic; padding:6px 2px;
+  }
+
+  td.cell{
+    border-top:1px solid var(--board-line);
+    border-left:1px solid var(--board-line);
+    padding:6px;
+    vertical-align:top;
+    min-width:150px;
+    min-height:48px;
+    transition:background-color .35s ease;
+  }
+  td.cell.has-techs{
+    background:#F7EEDC;
+    box-shadow:inset 0 0 0 1.5px #E4D3A8;
+  }
+  td.cell.drag-over{ background:#F3E9D8; outline:2px dashed var(--accent); outline-offset:-2px; }
+  td.cell.just-placed{
+    animation: cellFlash 0.7s ease;
+  }
+  @keyframes cellFlash{
+    0%{ background:#E8A560; box-shadow:inset 0 0 0 2px var(--accent); }
+    100%{ background:#F7EEDC; box-shadow:inset 0 0 0 1.5px #E4D3A8; }
+  }
+
+  .add-district-row td{
+    padding:6px 10px;
+  }
+  .add-district-row button{
+    border:1.5px dashed var(--board-line);background:transparent;color:var(--ink-soft);
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:12px;padding:6px 10px;border-radius:2px;
+  }
+  .add-district-row button:hover{border-color:var(--ink);color:var(--ink);}
+
+  /* ============ TECH CHIP ============ */
+  .chip{
+    background:var(--card-bg);
+    border:1.3px solid var(--ink);
+    border-left-width:6px;
+    box-shadow:var(--paper-shadow);
+    padding:5px 16px 5px 8px;
+    margin-top:10px;
+    cursor:grab;
+    position:relative;
+  }
+  .chip:first-child{margin-top:0;}
+  .chip:hover{transform:translate(-1px,-1px);box-shadow:var(--paper-shadow-hover);}
+  .chip.dragging{opacity:0.35;}
+  .chip-top{display:flex;align-items:flex-start;gap:4px;}
+  .chip-name{
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:12.5px;outline:none;flex:1;min-width:0;
+  }
+  .chip-name:empty::before{content:"Tech name";color:#c9c2b4;font-style:italic;font-weight:400;}
+  .chip-x{
+    position:absolute; top:-7px; right:-7px;
+    width:17px; height:17px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--card-bg);
+    border:1.3px solid var(--ink);
+    border-radius:50%;
+    color:var(--ink-soft);
+    font-size:12px; line-height:1; padding:0;
+    box-shadow:1px 1px 0 rgba(34,38,43,0.18);
+  }
+  .chip-x:hover{color:#fff;background:var(--danger);border-color:var(--danger);}
+  .chip-profile-btn{
+    position:absolute; top:-7px; left:-7px;
+    width:17px; height:17px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--ink);
+    border:1.3px solid var(--ink);
+    border-radius:50%;
+    color:var(--header-text);
+    font-family:'Oswald',sans-serif; font-weight:700;
+    font-size:10px; line-height:1; padding:0;
+    box-shadow:1px 1px 0 rgba(34,38,43,0.18);
+  }
+  .chip-profile-btn.has-detail{ background:var(--accent); border-color:var(--accent); }
+  .chip-profile-btn:hover{ background:#3E4450; border-color:#3E4450; }
+
+  /* ============ PROFILE MODAL ============ */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(20,22,26,0.55);
+    display:none; align-items:center; justify-content:center; z-index:50;
+    padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal-card{
+    background:var(--card-bg);
+    border:1.5px solid var(--ink);
+    box-shadow:5px 5px 0 rgba(34,38,43,0.25);
+    width:100%; max-width:380px;
+    padding:20px 22px 18px;
+  }
+  .modal-card h2{
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:19px;
+    margin:0 0 14px; letter-spacing:0.2px; color:var(--ink);
+  }
+  .modal-field{ margin-bottom:12px; }
+  .modal-field label{
+    display:block; font-family:'Oswald',sans-serif; font-weight:600; font-size:10.5px;
+    letter-spacing:0.6px; color:var(--ink-soft); margin-bottom:4px;
+  }
+  .modal-field input, .modal-field textarea{
+    width:100%; font-family:'IBM Plex Sans',sans-serif; font-size:13px; color:var(--ink);
+    border:1.3px solid var(--board-line); border-radius:2px; padding:7px 8px;
+    background:#fff; outline:none;
+  }
+  .modal-field input:focus, .modal-field textarea:focus{ border-color:var(--accent); }
+  .modal-field textarea{ min-height:90px; resize:vertical; font-family:'IBM Plex Sans',sans-serif; }
+  .modal-actions{ display:flex; justify-content:flex-end; margin-top:6px; }
+  .modal-card.wide{ max-width:600px; }
+  .archive-list{ max-height:60vh; overflow:auto; margin-top:4px; }
+  .archive-empty{ font-size:13px; color:var(--ink-soft); font-style:italic; padding:10px 2px; }
+  .archive-entry{
+    border:1.3px solid var(--board-line); border-left:6px solid var(--ink);
+    padding:10px 12px; margin-bottom:10px; background:#FBF9F4;
+  }
+  .archive-entry-top{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .archive-entry-title{ font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; color:var(--ink); }
+  .archive-entry-sub{ font-size:10.5px; color:var(--ink-soft); }
+  .archive-breakdown{ margin-top:8px; font-size:12px; color:var(--ink); line-height:1.6; }
+  .archive-breakdown strong{ color:var(--ink-soft); font-weight:600; }
+  .archive-actions{ display:flex; gap:8px; margin-top:10px; }
+  .archive-actions .btn{ font-size:11.5px; padding:5px 10px; }
+  .chip-note{
+    font-size:10.5px;color:var(--accent);font-weight:600;outline:none;margin-top:2px;min-height:12px;
+  }
+  .chip-note:empty::before{content:"+ note";color:#c9c2b4;font-weight:400;font-style:italic;}
+  .chip-reorder{
+    display:flex; justify-content:flex-end; gap:2px; margin-top:3px;
+  }
+  .chip-move-btn{
+    background:none; border:1px solid var(--board-line); border-radius:2px;
+    color:var(--ink-soft); font-size:9px; line-height:1; padding:1px 4px;
+  }
+  .chip-move-btn:hover{ border-color:var(--ink); color:var(--ink); }
+  .chip-move-btn:disabled{ opacity:.25; cursor:default; }
+
+  .empty-cell-hint{font-size:10.5px;color:#B7B0A0;font-style:italic;text-align:center;padding:8px 2px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title-block">
+    <a href="index.html">&larr; NCD INTERNAL</a>
+    <h1>Field Crew Board</h1>
+    <p>Shared board \u2014 anyone with this link can view and edit it. Drag a tech into a district for that week.</p>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn" id="addTechBtn">+ Add tech</button>
+    <button class="btn" id="archiveBtn">Archive</button>
+    <button class="btn" id="refreshBtn">Refresh</button>
+    <button class="btn" id="exportBtn">Export to spreadsheet</button>
+    <button class="btn" id="resetBtn">Reset to sample data</button>
+    <button class="btn primary" id="addWeekBtn">+ Add week</button>
+  </div>
+</div>
+<div class="sync-note" id="syncNote"></div>
+
+<div class="grid-wrap">
+  <table class="grid" id="gridTable"></table>
+</div>
+
+<div class="modal-overlay" id="profileOverlay">
+  <div class="modal-card">
+    <h2>Tech profile</h2>
+    <div class="modal-field">
+      <label for="profileName">Name</label>
+      <input type="text" id="profileName">
+    </div>
+    <div class="modal-field">
+      <label for="profileRole">Role / title</label>
+      <input type="text" id="profileRole" placeholder="e.g. Lead Technician">
+    </div>
+    <div class="modal-field">
+      <label for="profilePhone">Phone</label>
+      <input type="text" id="profilePhone" placeholder="e.g. (516) 555-0142">
+    </div>
+    <div class="modal-field">
+      <label for="profileDetail">Detail</label>
+      <textarea id="profileDetail" placeholder="Certifications, specialties, or detail of work"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="profileCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="archiveOverlay">
+  <div class="modal-card wide">
+    <h2>Archived weeks</h2>
+    <div class="archive-list" id="archiveList"></div>
+    <div class="modal-actions">
+      <button class="btn" id="archiveCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const COLORS = ["#3B6E8F","#B5563C","#5B7F5E","#C99A2E","#6B5B7A","#2E8B8B","#8C4A3C","#8A6FA0","#7A8450","#4A6FA5"];
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+
+  function seedData(){
+    const techNames = [
+      "Chris DiAngelo","Juan Concepcion","Mike Mullen Jr.","Mike Jack","Sakiris Diaz",
+      "Miguel Martinez","Frank Gioielli","Piet","Gerald Abt","Jarrett Abt",
+      "Anthony DiAngelo","Shaun McKee","Kevin Miranda","Rafael Abreu","Tayfun Uzun",
+      "Rafy","Ernie","Mike Mullen","Pat Uhlman","Matt Abt","Kevin Bolin","Ed Aukstolis",
+      "Joe Rosario","Bill Murphy"
+    ];
+    const techs = {};
+    techNames.forEach((name,i)=>{
+      const id = uid();
+      techs[name] = { id, name, color: COLORS[i % COLORS.length], role:'', phone:'', detail:'' };
+    });
+    const t = name => techs[name].id;
+
+    const districts = [
+      { id:'bench', label:'Bench / Unassigned' },
+      { id: uid(), label:'Carle Place' },
+      { id: uid(), label:'East Williston' },
+      { id: uid(), label:'Hempstead' },
+      { id: uid(), label:'Freeport' },
+      { id: uid(), label:'Lynbrook' },
+      { id: uid(), label:'Floral Park' },
+      { id: uid(), label:'Manhasset' },
+      { id: uid(), label:'Syosset' },
+      { id: uid(), label:'Oceanside' },
+      { id: uid(), label:'East Meadow' },
+      { id: uid(), label:'North Babylon' },
+    ];
+    const d = label => label==='bench' ? 'bench' : districts.find(x=>x.label===label).id;
+
+    const weeks = [
+      { id: uid(), date:'2026-08-10' },
+      { id: uid(), date:'2026-08-17' },
+      { id: uid(), date:'2026-08-24' },
+      { id: uid(), date:'2026-08-31' },
+    ];
+
+    const placements = {};
+    weeks.forEach(w => placements[w.id] = {});
+
+    function place(weekIdx, techName, districtLabel, note){
+      const w = weeks[weekIdx];
+      placements[w.id][t(techName)] = { districtId: d(districtLabel), note: note || '' };
+    }
+
+    // Week of Aug 10
+    place(0,"Chris DiAngelo","Carle Place");
+    place(0,"Juan Concepcion","Carle Place");
+    place(0,"Mike Mullen Jr.","Carle Place");
+    place(0,"Mike Jack","East Williston","Access control");
+    place(0,"Sakiris Diaz","East Williston");
+    place(0,"Miguel Martinez","Hempstead");
+    place(0,"Frank Gioielli","Hempstead");
+    place(0,"Piet","Hempstead");
+    place(0,"Gerald Abt","Freeport","Freeport PDK");
+    place(0,"Jarrett Abt","Freeport");
+    place(0,"Anthony DiAngelo","Freeport","Giblyn PA (2 days) \u2014 PTO 8/12\u20138/14");
+    place(0,"Shaun McKee","Freeport");
+    place(0,"Tayfun Uzun","Lynbrook");
+    place(0,"Rafy","Lynbrook");
+    place(0,"Ernie","Lynbrook");
+    place(0,"Mike Mullen","Floral Park");
+    place(0,"Pat Uhlman","Floral Park");
+    place(0,"Matt Abt","Syosset","Science rooms / OT?");
+    place(0,"Kevin Bolin","Syosset");
+    place(0,"Ed Aukstolis","Syosset");
+    place(0,"Kevin Miranda","bench","PTO 8/10\u20138/14");
+
+    // Week of Aug 17
+    place(1,"Chris DiAngelo","Carle Place");
+    place(1,"Juan Concepcion","Carle Place");
+    place(1,"Mike Mullen Jr.","Carle Place");
+    place(1,"Mike Jack","East Williston","VS-13 lockdown");
+    place(1,"Sakiris Diaz","East Williston");
+    place(1,"Miguel Martinez","Hempstead");
+    place(1,"Frank Gioielli","Hempstead");
+    place(1,"Piet","Hempstead");
+    place(1,"Gerald Abt","Freeport","Columbus \u2014 door ajar");
+    place(1,"Jarrett Abt","Freeport");
+    place(1,"Anthony DiAngelo","Freeport","PTO 8/17\u20138/20");
+    place(1,"Shaun McKee","North Babylon");
+    place(1,"Kevin Miranda","East Meadow");
+    place(1,"Tayfun Uzun","Lynbrook");
+    place(1,"Rafy","Lynbrook");
+    place(1,"Ernie","Lynbrook");
+    place(1,"Mike Mullen","Floral Park");
+    place(1,"Pat Uhlman","Floral Park");
+    place(1,"Matt Abt","Oceanside");
+    place(1,"Kevin Bolin","Oceanside","N. Babylon camera swaps; Manhasset LPR");
+    place(1,"Ed Aukstolis","Oceanside");
+
+    // Week of Aug 24
+    place(2,"Chris DiAngelo","Carle Place");
+    place(2,"Juan Concepcion","Carle Place");
+    place(2,"Mike Mullen Jr.","Carle Place");
+    place(2,"Mike Jack","East Williston","VS-13 lockdown");
+    place(2,"Sakiris Diaz","East Williston");
+    place(2,"Miguel Martinez","Hempstead");
+    place(2,"Frank Gioielli","Hempstead");
+    place(2,"Piet","Hempstead");
+    place(2,"Gerald Abt","Freeport","Columbus \u2014 door ajar");
+    place(2,"Jarrett Abt","Freeport");
+    place(2,"Anthony DiAngelo","Freeport","Giblyn PA");
+    place(2,"Shaun McKee","North Babylon");
+    place(2,"Tayfun Uzun","Lynbrook");
+    place(2,"Rafy","Lynbrook");
+    place(2,"Ernie","Lynbrook");
+    place(2,"Mike Mullen","Manhasset");
+    place(2,"Pat Uhlman","Manhasset");
+    place(2,"Matt Abt","Oceanside");
+    place(2,"Kevin Bolin","Oceanside");
+    place(2,"Ed Aukstolis","Oceanside");
+
+    // Week of Aug 31
+    place(3,"Mike Jack","East Williston","VS-13 lockdown");
+    place(3,"Sakiris Diaz","East Williston");
+    place(3,"Miguel Martinez","Hempstead");
+    place(3,"Frank Gioielli","Hempstead");
+    place(3,"Piet","Hempstead");
+    place(3,"Gerald Abt","Freeport","Columbus \u2014 door ajar");
+    place(3,"Jarrett Abt","Freeport");
+    place(3,"Anthony DiAngelo","Freeport","Giblyn PA");
+    place(3,"Shaun McKee","North Babylon");
+
+    return {
+      techs: Object.values(techs),
+      districts,
+      weeks,
+      placements,
+      archive: []
+    };
+  }
+
+  let board = null;
+  let dragTechId = null;
+  let dragFromWeek = null;
+  let isEditingText = false;
+  let lastSavedJSON = "";
+  const tableEl = document.getElementById('gridTable');
+  const syncNoteEl = document.getElementById('syncNote');
+
+  function timeNow(){ return new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+
+  async function save(){
+    try{
+      const json = JSON.stringify(board);
+      const res = await window.storage.set('crew-board-grid-state', json, true);
+      if(res){
+        lastSavedJSON = json;
+        syncNoteEl.textContent = "Last saved " + timeNow() + " \u2014 visible to everyone with this link";
+      }
+    }catch(e){ console.error("Storage error:", e); }
+  }
+
+  function ensureTechFields(b){
+    b.techs.forEach(t=>{
+      if(t.role===undefined) t.role='';
+      if(t.phone===undefined) t.phone='';
+      if(t.detail===undefined) t.detail='';
+    });
+    if(!Array.isArray(b.archive)) b.archive = [];
+    b.weeks.forEach(w=>{
+      if(w.date===undefined) w.date = '';
+    });
+    return b;
+  }
+
+  const DAY_ABBR = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function parseISODate(dateStr){
+    // Parse as local calendar date, not UTC, so it never shifts a day off.
+    const [y,m,d] = dateStr.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+
+  function formatWeekLabel(dateStr){
+    if(!dateStr) return '';
+    const dt = parseISODate(dateStr);
+    return 'Week of ' + MONTH_ABBR[dt.getMonth()] + ' ' + dt.getDate();
+  }
+
+  function formatWeekDayStrip(dateStr){
+    // Assumes dateStr is the Monday of that week; renders Mon\u2013Fri.
+    if(!dateStr) return [];
+    const start = parseISODate(dateStr);
+    const days = [];
+    for(let i=0; i<5; i++){
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate()+i);
+      days.push(DAY_ABBR[d.getDay()] + ' ' + (d.getMonth()+1) + '/' + d.getDate());
+    }
+    return days;
+  }
+
+  async function load(){
+    try{
+      const res = await window.storage.get('crew-board-grid-state', true);
+      if(res && res.value){
+        board = ensureTechFields(JSON.parse(res.value));
+        lastSavedJSON = res.value;
+        return;
+      }
+    }catch(e){ /* no saved state yet */ }
+    board = seedData();
+    await save();
+  }
+
+  async function refreshFromShared(silent){
+    if(isEditingText || dragTechId) return;
+    try{
+      const res = await window.storage.get('crew-board-grid-state', true);
+      if(res && res.value && res.value !== lastSavedJSON){
+        board = ensureTechFields(JSON.parse(res.value));
+        lastSavedJSON = res.value;
+        render();
+        if(!silent) syncNoteEl.textContent = "Updated by someone else \u2014 " + timeNow();
+      }
+    }catch(e){ /* ignore */ }
+  }
+
+  function getPlacement(weekId, techId){
+    const w = board.placements[weekId];
+    if(w && w[techId]) return w[techId];
+    return { districtId:'bench', note:'' };
+  }
+  function setPlacement(weekId, techId, districtId, note){
+    if(!board.placements[weekId]) board.placements[weekId] = {};
+    board.placements[weekId][techId] = { districtId, note: note||'' };
+  }
+
+  // Keeps board.cellOrder (per-week, per-district display order of techIds) in sync
+  // with board.placements. Anyone whose placement changed since the last render
+  // drops out of their old cell's order and is appended to the end of their new
+  // cell's order; anyone already correctly placed keeps their existing position.
+  function reconcileCellOrder(b){
+    if(!b.cellOrder) b.cellOrder = {};
+    b.weeks.forEach(week=>{
+      if(!b.cellOrder[week.id]) b.cellOrder[week.id] = {};
+      const seen = new Set();
+      Object.keys(b.cellOrder[week.id]).forEach(distId=>{
+        b.cellOrder[week.id][distId] = b.cellOrder[week.id][distId].filter(tid=>{
+          const p = (b.placements[week.id] && b.placements[week.id][tid]) || { districtId:'bench' };
+          const stillExists = b.techs.some(t=>t.id===tid);
+          const keep = stillExists && p.districtId === distId;
+          if(keep) seen.add(tid);
+          return keep;
+        });
+      });
+      b.techs.forEach(tech=>{
+        if(seen.has(tech.id)) return;
+        const p = (b.placements[week.id] && b.placements[week.id][tech.id]) || { districtId:'bench' };
+        if(!b.cellOrder[week.id][p.districtId]) b.cellOrder[week.id][p.districtId] = [];
+        b.cellOrder[week.id][p.districtId].push(tech.id);
+      });
+    });
+    return b;
+  }
+
+  function moveTechInCell(weekId, districtId, techId, direction){
+    const arr = (board.cellOrder[weekId] && board.cellOrder[weekId][districtId]) || [];
+    const idx = arr.indexOf(techId);
+    const newIdx = idx + direction;
+    if(idx===-1 || newIdx<0 || newIdx>=arr.length) return;
+    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+    save(); render();
+  }
+
+  function moveDistrict(districtId, direction){
+    const idx = board.districts.findIndex(d=>d.id===districtId);
+    const newIdx = idx + direction;
+    if(idx<=0 || newIdx<=0 || newIdx>=board.districts.length) return; // index 0 is bench, stays pinned
+    [board.districts[idx], board.districts[newIdx]] = [board.districts[newIdx], board.districts[idx]];
+    save(); render();
+  }
+
+  let benchCollapsed = false;
+
+  function buildDistrictRow(district, isBench, isFirst, isLast){
+    const tr = document.createElement('tr');
+    if(isBench) tr.className = 'bench-row';
+
+    const rowHead = document.createElement('td');
+    rowHead.className = 'district-head' + (isBench ? ' bench-head' : '');
+    const rowActions = document.createElement('div');
+    rowActions.className = 'district-row-actions';
+    const dInput = document.createElement('input');
+    dInput.className = 'district-title';
+    dInput.value = district.label;
+    dInput.addEventListener('focus', ()=>{ isEditingText = true; });
+    dInput.addEventListener('blur', ()=>{ isEditingText = false; district.label = dInput.value; save(); });
+    rowActions.appendChild(dInput);
+
+    if(isBench){
+      const toggle = document.createElement('button');
+      toggle.className = 'bench-collapse-btn';
+      toggle.textContent = benchCollapsed ? 'Show' : 'Hide';
+      toggle.title = benchCollapsed ? 'Show unassigned techs' : 'Hide unassigned techs';
+      toggle.addEventListener('click', ()=>{ benchCollapsed = !benchCollapsed; render(); });
+      rowActions.appendChild(toggle);
+    } else {
+      const moveUp = document.createElement('button');
+      moveUp.className = 'mini-move'; moveUp.textContent = '\u25B2'; moveUp.title = 'Move district up';
+      moveUp.disabled = !!isFirst;
+      moveUp.addEventListener('click', ()=>moveDistrict(district.id, -1));
+      rowActions.appendChild(moveUp);
+
+      const moveDown = document.createElement('button');
+      moveDown.className = 'mini-move'; moveDown.textContent = '\u25BC'; moveDown.title = 'Move district down';
+      moveDown.disabled = !!isLast;
+      moveDown.addEventListener('click', ()=>moveDistrict(district.id, 1));
+      rowActions.appendChild(moveDown);
+
+      const rm = document.createElement('button');
+      rm.className = 'mini-x'; rm.innerHTML = '&times;'; rm.title = 'Delete district';
+      rm.addEventListener('click', ()=>{
+        if(confirm('Delete "'+district.label+'"? Anyone assigned there goes back to the bench.')){
+          Object.keys(board.placements).forEach(wid=>{
+            Object.keys(board.placements[wid]).forEach(tid=>{
+              if(board.placements[wid][tid].districtId === district.id){
+                board.placements[wid][tid].districtId = 'bench';
+              }
+            });
+          });
+          board.districts = board.districts.filter(d=>d.id!==district.id);
+          save(); render();
+        }
+      });
+      rowActions.appendChild(rm);
+    }
+    rowHead.appendChild(rowActions);
+    if(isBench){
+      const eyebrow = document.createElement('div');
+      eyebrow.className = 'bench-eyebrow';
+      eyebrow.textContent = 'UNASSIGNED THIS WEEK';
+      rowHead.insertBefore(eyebrow, rowHead.firstChild);
+    }
+    tr.appendChild(rowHead);
+
+    board.weeks.forEach(week=>{
+      const td = document.createElement('td');
+      td.className = 'cell';
+      td.dataset.weekId = week.id;
+      td.dataset.districtId = district.id;
+
+      const orderArr = (board.cellOrder[week.id] && board.cellOrder[week.id][district.id]) || [];
+      const techsHere = orderArr.map(tid => board.techs.find(t=>t.id===tid)).filter(Boolean);
+      if(techsHere.length > 0){
+        td.classList.add('has-techs');
+      }
+
+      if(isBench && benchCollapsed){
+        const hint = document.createElement('div');
+        hint.className = 'bench-collapsed-hint';
+        hint.textContent = techsHere.length + (techsHere.length===1 ? ' unassigned' : ' unassigned');
+        td.appendChild(hint);
+      } else {
+        if(techsHere.length===0){
+          const hint = document.createElement('div');
+          hint.className = 'empty-cell-hint';
+          hint.textContent = isBench ? '' : 'Drop a tech here';
+          td.appendChild(hint);
+        }
+        techsHere.forEach((tech, idx)=>{
+          td.appendChild(renderChip(tech, week, district, idx, techsHere.length));
+        });
+      }
+
+      td.addEventListener('dragover', (e)=>{
+        if(dragFromWeek !== week.id) return;
+        e.preventDefault();
+        td.classList.add('drag-over');
+      });
+      td.addEventListener('dragleave', ()=>{ td.classList.remove('drag-over'); });
+      td.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        td.classList.remove('drag-over');
+        if(!dragTechId || dragFromWeek !== week.id) return;
+        const existing = getPlacement(week.id, dragTechId);
+        setPlacement(week.id, dragTechId, district.id, existing.note);
+        const flashWeek = week.id, flashDistrict = district.id;
+        dragTechId = null; dragFromWeek = null;
+        save(); render();
+        const target = tableEl.querySelector('td.cell[data-week-id="'+flashWeek+'"][data-district-id="'+flashDistrict+'"]');
+        if(target){
+          target.classList.add('just-placed');
+          setTimeout(()=>{ target.classList.remove('just-placed'); }, 700);
+        }
+      });
+
+      tr.appendChild(td);
+    });
+
+    const spacerTd = document.createElement('td');
+    tr.appendChild(spacerTd);
+
+    return tr;
+  }
+
+  function render(){
+    reconcileCellOrder(board);
+    tableEl.innerHTML = "";
+
+    // header row
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    const corner = document.createElement('th');
+    corner.className = 'corner';
+    headRow.appendChild(corner);
+
+    board.weeks.forEach(week=>{
+      const th = document.createElement('th');
+      th.className = 'week-head';
+
+      const titleDiv = document.createElement('div');
+      titleDiv.className = 'week-title';
+      titleDiv.textContent = week.date ? formatWeekLabel(week.date) : 'New week';
+      th.appendChild(titleDiv);
+
+      const dateInput = document.createElement('input');
+      dateInput.type = 'date';
+      dateInput.className = 'week-date-input';
+      dateInput.value = week.date || '';
+      dateInput.addEventListener('focus', ()=>{ isEditingText = true; });
+      dateInput.addEventListener('change', ()=>{
+        isEditingText = false;
+        week.date = dateInput.value;
+        save(); render();
+      });
+      dateInput.addEventListener('blur', ()=>{ isEditingText = false; });
+      th.appendChild(dateInput);
+
+      if(week.date){
+        const strip = document.createElement('div');
+        strip.className = 'week-daystrip';
+        formatWeekDayStrip(week.date).forEach(dayLabel=>{
+          const d = document.createElement('span');
+          d.className = 'daystrip-day';
+          d.textContent = dayLabel;
+          strip.appendChild(d);
+        });
+        th.appendChild(strip);
+      } else {
+        const hint = document.createElement('div');
+        hint.className = 'week-nodate';
+        hint.textContent = 'Pick a start date \u2192';
+        th.appendChild(hint);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'col-actions';
+      const rm = document.createElement('button');
+      rm.className = 'mini-x'; rm.innerHTML = '&times;'; rm.title = 'Archive week';
+      rm.addEventListener('click', ()=>{
+        const label = week.date ? formatWeekLabel(week.date) : 'this week';
+        if(confirm('Archive "'+label+'"? It will move out of the active board, but you can restore it later from Archive.')){
+          archiveWeek(week.id);
+        }
+      });
+      actions.appendChild(rm);
+      th.appendChild(actions);
+      headRow.appendChild(th);
+    });
+
+    const addWeekTh = document.createElement('th');
+    addWeekTh.className = 'add-week-cell';
+    const addWeekBtnCell = document.createElement('button');
+    addWeekBtnCell.textContent = '+ Week';
+    addWeekBtnCell.addEventListener('click', addWeek);
+    addWeekTh.appendChild(addWeekBtnCell);
+    headRow.appendChild(addWeekTh);
+
+    thead.appendChild(headRow);
+    tableEl.appendChild(thead);
+
+    // body rows: bench shelf first (visually separated), then one row per district
+    const tbody = document.createElement('tbody');
+
+    const benchDistrict = board.districts.find(d => d.id === 'bench');
+    const otherDistricts = board.districts.filter(d => d.id !== 'bench');
+
+    if(benchDistrict){
+      tbody.appendChild(buildDistrictRow(benchDistrict, true));
+    }
+    otherDistricts.forEach((district, idx)=>{
+      tbody.appendChild(buildDistrictRow(district, false, idx===0, idx===otherDistricts.length-1));
+    });
+
+    // add-district row
+    const addTr = document.createElement('tr');
+    addTr.className = 'add-district-row';
+    const addTd = document.createElement('td');
+    const addBtn = document.createElement('button');
+    addBtn.textContent = '+ Add district';
+    addBtn.addEventListener('click', addDistrict);
+    addTd.appendChild(addBtn);
+    addTr.appendChild(addTd);
+    board.weeks.forEach(()=>{ addTr.appendChild(document.createElement('td')); });
+    addTr.appendChild(document.createElement('td'));
+    tbody.appendChild(addTr);
+
+    tableEl.appendChild(tbody);
+  }
+
+  function renderChip(tech, week, district, posIdx, cellSize){
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.style.borderLeftColor = tech.color;
+    chip.draggable = true;
+
+    chip.addEventListener('dragstart', ()=>{
+      dragTechId = tech.id; dragFromWeek = week.id;
+      chip.classList.add('dragging');
+    });
+    chip.addEventListener('dragend', ()=>{ chip.classList.remove('dragging'); });
+
+    const top = document.createElement('div');
+    top.className = 'chip-top';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'chip-name';
+    nameEl.contentEditable = true;
+    nameEl.textContent = tech.name;
+    nameEl.addEventListener('focus', ()=>{ isEditingText = true; });
+    nameEl.addEventListener('blur', ()=>{
+      isEditingText = false;
+      tech.name = nameEl.textContent.trim();
+      save();
+    });
+    top.appendChild(nameEl);
+
+    const profileBtn = document.createElement('button');
+    profileBtn.className = 'chip-profile-btn' + (tech.role||tech.phone||tech.detail ? ' has-detail' : '');
+    profileBtn.textContent = 'i';
+    profileBtn.title = 'View / edit profile';
+    profileBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openProfile(tech.id);
+    });
+    chip.appendChild(profileBtn);
+
+    const rm = document.createElement('button');
+    rm.className = 'chip-x';
+    rm.innerHTML = '&times;';
+    rm.title = district.id==='bench' ? 'Remove from roster' : 'Send back to bench';
+    rm.addEventListener('click', ()=>{
+      if(district.id==='bench'){
+        if(confirm('Remove '+ (tech.name||'this tech') +' from the roster entirely? This removes them from every week.')){
+          board.techs = board.techs.filter(t=>t.id!==tech.id);
+          Object.keys(board.placements).forEach(wid=>{ delete board.placements[wid][tech.id]; });
+          save(); render();
+        }
+      } else {
+        setPlacement(week.id, tech.id, 'bench', '');
+        save(); render();
+      }
+    });
+    top.appendChild(rm);
+    chip.appendChild(top);
+
+    const note = document.createElement('div');
+    note.className = 'chip-note';
+    note.contentEditable = true;
+    const placement = getPlacement(week.id, tech.id);
+    note.textContent = placement.note || '';
+    note.addEventListener('focus', ()=>{ isEditingText = true; });
+    note.addEventListener('blur', ()=>{
+      isEditingText = false;
+      setPlacement(week.id, tech.id, district.id, note.textContent.trim());
+      save();
+    });
+    chip.appendChild(note);
+
+    if(cellSize > 1){
+      const reorder = document.createElement('div');
+      reorder.className = 'chip-reorder';
+
+      const up = document.createElement('button');
+      up.className = 'chip-move-btn'; up.textContent = '\u25B2'; up.title = 'Move up';
+      up.disabled = posIdx === 0;
+      up.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        moveTechInCell(week.id, district.id, tech.id, -1);
+      });
+      reorder.appendChild(up);
+
+      const down = document.createElement('button');
+      down.className = 'chip-move-btn'; down.textContent = '\u25BC'; down.title = 'Move down';
+      down.disabled = posIdx === cellSize - 1;
+      down.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        moveTechInCell(week.id, district.id, tech.id, 1);
+      });
+      reorder.appendChild(down);
+
+      chip.appendChild(reorder);
+    }
+
+    return chip;
+  }
+
+  function addWeek(){
+    const w = { id: uid(), date: '' };
+    board.weeks.push(w);
+    board.placements[w.id] = {};
+    save(); render();
+  }
+  function addDistrict(){
+    board.districts.push({ id: uid(), label: 'New District' });
+    save(); render();
+  }
+  function addTech(){
+    const colorIdx = board.techs.length % COLORS.length;
+    board.techs.push({ id: uid(), name: '', color: COLORS[colorIdx], role:'', phone:'', detail:'' });
+    save(); render();
+  }
+
+  // ============ ARCHIVE ============
+  function archiveWeek(weekId){
+    const week = board.weeks.find(w=>w.id===weekId);
+    if(!week) return;
+    reconcileCellOrder(board); // make sure cellOrder is current before snapshotting
+
+    const districtsSnapshot = board.districts.map(d=>{
+      const orderArr = (board.cellOrder[weekId] && board.cellOrder[weekId][d.id]) || [];
+      const techsSnapshot = orderArr.map(tid=>{
+        const t = board.techs.find(x=>x.id===tid);
+        if(!t) return null;
+        const p = getPlacement(weekId, tid);
+        return { techId: t.id, name: t.name, role: t.role, note: p.note||'' };
+      }).filter(Boolean);
+      return { districtId: d.id, label: d.label, techs: techsSnapshot };
+    });
+
+    board.archive.push({
+      id: uid(),
+      date: week.date,
+      label: week.date ? formatWeekLabel(week.date) : 'Undated week',
+      archivedAt: new Date().toISOString(),
+      districts: districtsSnapshot
+    });
+
+    delete board.placements[weekId];
+    delete board.cellOrder[weekId];
+    board.weeks = board.weeks.filter(w=>w.id!==weekId);
+    save(); render();
+  }
+
+  function restoreArchivedWeek(archiveId){
+    const entry = board.archive.find(a=>a.id===archiveId);
+    if(!entry) return;
+
+    const newWeek = { id: uid(), date: entry.date };
+    board.weeks.push(newWeek);
+    board.placements[newWeek.id] = {};
+    board.cellOrder[newWeek.id] = {};
+
+    entry.districts.forEach(distSnap=>{
+      const districtStillExists = board.districts.some(d=>d.id===distSnap.districtId);
+      const targetDistrictId = districtStillExists ? distSnap.districtId : 'bench';
+      distSnap.techs.forEach(techSnap=>{
+        const stillOnRoster = board.techs.some(t=>t.id===techSnap.techId);
+        if(!stillOnRoster) return; // person no longer on the roster; skip restoring them
+        board.placements[newWeek.id][techSnap.techId] = { districtId: targetDistrictId, note: techSnap.note||'' };
+      });
+    });
+
+    board.archive = board.archive.filter(a=>a.id!==archiveId);
+    save(); render(); renderArchiveList();
+  }
+
+  function deleteArchivedForever(archiveId){
+    const entry = board.archive.find(a=>a.id===archiveId);
+    if(!entry) return;
+    if(!confirm('Permanently delete the archived "'+entry.label+'"? This cannot be undone.')) return;
+    board.archive = board.archive.filter(a=>a.id!==archiveId);
+    save(); renderArchiveList();
+  }
+
+  function openArchive(){
+    document.getElementById('archiveOverlay').classList.add('open');
+    renderArchiveList();
+  }
+  function closeArchive(){
+    document.getElementById('archiveOverlay').classList.remove('open');
+  }
+  function renderArchiveList(){
+    const listEl = document.getElementById('archiveList');
+    listEl.innerHTML = '';
+    if(board.archive.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'archive-empty';
+      empty.textContent = 'No archived weeks yet. Archive a week from its \u00d7 button on the main board.';
+      listEl.appendChild(empty);
+      return;
+    }
+    // most recently archived first
+    const sorted = [...board.archive].sort((a,b)=> (b.archivedAt||'').localeCompare(a.archivedAt||''));
+    sorted.forEach(entry=>{
+      const card = document.createElement('div');
+      card.className = 'archive-entry';
+
+      const top = document.createElement('div');
+      top.className = 'archive-entry-top';
+      const title = document.createElement('div');
+      title.className = 'archive-entry-title';
+      title.textContent = entry.label;
+      top.appendChild(title);
+      const sub = document.createElement('div');
+      sub.className = 'archive-entry-sub';
+      const totalTechs = entry.districts.reduce((sum,d)=>sum+d.techs.length,0);
+      sub.textContent = totalTechs + (totalTechs===1 ? ' assignment' : ' assignments');
+      top.appendChild(sub);
+      card.appendChild(top);
+
+      const breakdown = document.createElement('div');
+      breakdown.className = 'archive-breakdown';
+      const activeDistricts = entry.districts.filter(d=>d.techs.length>0);
+      if(activeDistricts.length===0){
+        breakdown.textContent = 'Nobody was assigned this week.';
+      } else {
+        activeDistricts.forEach(d=>{
+          const line = document.createElement('div');
+          const names = d.techs.map(t=>t.name||'(unnamed)').join(', ');
+          line.innerHTML = '<strong>'+d.label+':</strong> ' + names;
+          breakdown.appendChild(line);
+        });
+      }
+      card.appendChild(breakdown);
+
+      const actions = document.createElement('div');
+      actions.className = 'archive-actions';
+      const restoreBtn = document.createElement('button');
+      restoreBtn.className = 'btn primary';
+      restoreBtn.textContent = 'Restore to board';
+      restoreBtn.addEventListener('click', ()=>restoreArchivedWeek(entry.id));
+      actions.appendChild(restoreBtn);
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn';
+      delBtn.textContent = 'Delete permanently';
+      delBtn.addEventListener('click', ()=>deleteArchivedForever(entry.id));
+      actions.appendChild(delBtn);
+      card.appendChild(actions);
+
+      listEl.appendChild(card);
+    });
+  }
+
+  let activeProfileTechId = null;
+
+  function openProfile(techId){
+    const tech = board.techs.find(t=>t.id===techId);
+    if(!tech) return;
+    activeProfileTechId = techId;
+    document.getElementById('profileName').value = tech.name || '';
+    document.getElementById('profileRole').value = tech.role || '';
+    document.getElementById('profilePhone').value = tech.phone || '';
+    document.getElementById('profileDetail').value = tech.detail || '';
+    document.getElementById('profileOverlay').classList.add('open');
+    isEditingText = true;
+  }
+
+  function closeProfile(){
+    document.getElementById('profileOverlay').classList.remove('open');
+    activeProfileTechId = null;
+    isEditingText = false;
+    save(); render();
+  }
+
+  function updateProfileField(field, value){
+    if(!activeProfileTechId) return;
+    const tech = board.techs.find(t=>t.id===activeProfileTechId);
+    if(tech) tech[field] = value;
+  }
+
+  function exportBoard(){
+    try{
+      const rows = [["Week", "District", "Tech", "Role", "Note", "Detail"]];
+      board.weeks.forEach(week=>{
+        board.districts.forEach(district=>{
+          board.techs.forEach(tech=>{
+            const p = getPlacement(week.id, tech.id);
+            if(p.districtId === district.id){
+              rows.push([week.date ? formatWeekLabel(week.date) : '(no date set)', district.label, tech.name, tech.role||'', p.note||'', tech.detail||'']);
+            }
+          });
+        });
+      });
+      if(rows.length===1){ alert('No techs on the board yet.'); return; }
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{wch:22},{wch:22},{wch:24},{wch:20},{wch:30},{wch:34}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Crew Board");
+      const stamp = new Date().toISOString().slice(0,10);
+      XLSX.writeFile(wb, "crew-board-" + stamp + ".xlsx");
+    }catch(e){
+      console.error("Export error:", e);
+      alert("Export failed \u2014 try again in a moment.");
+    }
+  }
+
+  document.getElementById('addTechBtn').addEventListener('click', addTech);
+  document.getElementById('addWeekBtn').addEventListener('click', addWeek);
+  document.getElementById('archiveBtn').addEventListener('click', openArchive);
+  document.getElementById('archiveCloseBtn').addEventListener('click', closeArchive);
+  document.getElementById('archiveOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'archiveOverlay') closeArchive();
+  });
+  document.getElementById('exportBtn').addEventListener('click', exportBoard);
+  document.getElementById('refreshBtn').addEventListener('click', ()=>refreshFromShared(false));
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    if(confirm('Reset the board back to the sample schedule? This clears the board for everyone using this link.')){
+      board = seedData();
+      save(); render();
+    }
+  });
+
+  document.getElementById('profileName').addEventListener('input', (e)=>updateProfileField('name', e.target.value));
+  document.getElementById('profileRole').addEventListener('input', (e)=>updateProfileField('role', e.target.value));
+  document.getElementById('profilePhone').addEventListener('input', (e)=>updateProfileField('phone', e.target.value));
+  document.getElementById('profileDetail').addEventListener('input', (e)=>updateProfileField('detail', e.target.value));
+  document.getElementById('profileCloseBtn').addEventListener('click', closeProfile);
+  document.getElementById('profileOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'profileOverlay') closeProfile();
+  });
+
+  (async function init(){
+    await load();
+    render();
+    setInterval(()=>refreshFromShared(true), 15000);
+  })();
+
+})();
+</script>
+</body>
+</html>
