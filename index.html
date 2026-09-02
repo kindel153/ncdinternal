@@ -55,6 +55,16 @@
     letter-spacing:0.3px;
     margin:0;
   }
+  .brand-row{
+    display:flex;
+    align-items:center;
+    gap:18px;
+  }
+  .brand-row img{
+    height:72px;
+    width:auto;
+    display:block;
+  }
   header p{
     margin:10px 0 0;
     font-size:14.5px;
@@ -143,8 +153,13 @@
 
 <header>
   <div class="header-inner">
-    <p class="brand-mark">NCD COMMUNICATIONS</p>
-    <h1>NCD Internal</h1>
+    <div class="brand-row">
+      <img src="logo.png" alt="NCD Communications">
+      <div>
+        <p class="brand-mark">NCD COMMUNICATIONS</p>
+        <h1>NCD Internal</h1>
+      </div>
+    </div>
     <p>A home base for the team's scheduling boards, trackers, and internal tools.</p>
   </div>
 </header>
