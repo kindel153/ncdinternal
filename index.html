@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NCD Internal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --board-bg:#EDEAE2;
+    --board-line:#D9D4C7;
+    --ink:#22262B;
+    --ink-soft:#5A5F66;
+    --header-bg:#20242B;
+    --header-text:#F4F1E8;
+    --card-bg:#FFFDF8;
+    --card-edge:#22262B;
+    --paper-shadow:3px 3px 0 rgba(34,38,43,0.18);
+    --paper-shadow-hover:4px 4px 0 rgba(34,38,43,0.24);
+    --accent:#B5563C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(var(--board-line) 1px, transparent 1px) 0 0/22px 22px,
+      var(--board-bg);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+  }
+  header{
+    background:var(--header-bg);
+    color:var(--header-text);
+    padding:38px 24px 30px;
+    border-bottom:5px solid var(--accent);
+  }
+  .header-inner{
+    max-width:900px;
+    margin:0 auto;
+  }
+  .brand-mark{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size:12px;
+    letter-spacing:1.5px;
+    color:var(--accent);
+    margin:0 0 6px;
+  }
+  header h1{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    font-size:36px;
+    letter-spacing:0.3px;
+    margin:0;
+  }
+  header p{
+    margin:10px 0 0;
+    font-size:14.5px;
+    color:#C7C3B7;
+    max-width:520px;
+    line-height:1.5;
+  }
+  main{
+    max-width:900px;
+    margin:0 auto;
+    padding:38px 24px 60px;
+  }
+  .section-label{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:0.3px;
+    color:var(--ink-soft);
+    margin:0 0 16px;
+    padding-bottom:10px;
+    border-bottom:2px solid var(--ink);
+  }
+  .tool-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+    gap:18px;
+  }
+  .tool-card{
+    display:block;
+    background:var(--card-bg);
+    border:1.5px solid var(--card-edge);
+    border-left-width:7px;
+    border-left-color:var(--accent);
+    box-shadow:var(--paper-shadow);
+    padding:18px 18px 16px;
+    text-decoration:none;
+    color:var(--ink);
+    transition:transform .08s ease, box-shadow .08s ease;
+  }
+  .tool-card:hover{
+    transform:translate(-1px,-1px);
+    box-shadow:var(--paper-shadow-hover);
+  }
+  .tool-card h2{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size:18px;
+    margin:0 0 8px;
+    letter-spacing:0.2px;
+  }
+  .tool-card p{
+    font-size:13px;
+    color:var(--ink-soft);
+    line-height:1.5;
+    margin:0;
+  }
+  .tool-card .go{
+    display:inline-block;
+    margin-top:12px;
+    font-size:12px;
+    font-weight:600;
+    color:var(--accent);
+  }
+  .tool-card.placeholder{
+    border-style:dashed;
+    border-left-style:solid;
+    border-left-color:var(--board-line);
+    border-color:var(--board-line);
+    box-shadow:none;
+    background:rgba(255,253,248,0.4);
+    cursor:default;
+  }
+  .tool-card.placeholder:hover{transform:none;box-shadow:none;}
+  .tool-card.placeholder h2{color:var(--ink-soft);}
+  .tool-card.placeholder p{font-style:italic;}
+  footer{
+    max-width:900px;
+    margin:0 auto;
+    padding:0 24px 40px;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <p class="brand-mark">NCD COMMUNICATIONS</p>
+    <h1>NCD Internal</h1>
+    <p>A home base for the team's scheduling boards, trackers, and internal tools.</p>
+  </div>
+</header>
+
+<main>
+  <p class="section-label">Tools</p>
+  <div class="tool-grid">
+    <a class="tool-card" href="crew-board.html">
+      <h2>Field Crew Board</h2>
+      <p>Drag-and-drop weekly crew scheduling by job site, with a bench for unassigned techs and spreadsheet export.</p>
+      <span class="go">Open board &rarr;</span>
+    </a>
+    <div class="tool-card placeholder">
+      <h2>More tools coming soon</h2>
+      <p>This spot's open for whatever the team needs next.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  NCD Internal &mdash; internal use only.
+</footer>
+
+</body>
+</html>
