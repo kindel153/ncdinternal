@@ -1,0 +1,3715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Field Crew Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --board-bg:#EDEAE2;
+    --board-line:#D9D4C7;
+    --ink:#22262B;
+    --ink-soft:#5A5F66;
+    --header-bg:#20242B;
+    --header-text:#F4F1E8;
+    --card-bg:#FFFDF8;
+    --paper-shadow:2px 2px 0 rgba(34,38,43,0.16);
+    --paper-shadow-hover:3px 3px 0 rgba(34,38,43,0.22);
+    --accent:#B5563C;
+    --danger:#A8402C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(var(--board-line) 1px, transparent 1px) 0 0/22px 22px,
+      var(--board-bg);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    padding:24px 24px 60px;
+  }
+  .topbar{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:8px;
+    padding-bottom:14px;
+    border-bottom:3px solid var(--ink);
+    flex-wrap:wrap;
+  }
+  .title-block h1{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    font-size:28px;
+    letter-spacing:0.3px;
+    margin:0;
+  }
+  .title-block a{
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:11.5px;
+    letter-spacing:0.4px;color:var(--ink-soft);text-decoration:none;
+  }
+  .title-block p{
+    margin:6px 0 0;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .topbar-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  button{font-family:'IBM Plex Sans', sans-serif;cursor:pointer;}
+  .btn{
+    border:2px solid var(--ink);
+    background:var(--card-bg);
+    color:var(--ink);
+    font-size:12.5px;
+    font-weight:600;
+    padding:7px 12px;
+    border-radius:2px;
+    box-shadow:var(--paper-shadow);
+  }
+  .btn:hover{transform:translate(-1px,-1px);box-shadow:var(--paper-shadow-hover);}
+  .btn.primary{background:var(--ink);color:var(--header-text);}
+  .sync-note{font-size:11.5px;color:var(--ink-soft);margin:8px 0 16px;}
+
+  /* ============ TABS ============ */
+  .tab-bar{
+    display:flex; gap:2px; margin:0 0 16px; border-bottom:2px solid var(--ink);
+  }
+  .tab-btn{
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:13px; letter-spacing:0.3px;
+    background:transparent; border:none; color:var(--ink-soft);
+    padding:9px 16px; border-bottom:3px solid transparent; margin-bottom:-2px;
+  }
+  .tab-btn:hover{ color:var(--ink); }
+  .tab-btn.active{ color:var(--ink); border-bottom-color:var(--accent); }
+
+  /* ============ TECH POOL ============ */
+  .pool-toolbar{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;
+  }
+  .pool-search{
+    font-family:'IBM Plex Sans',sans-serif; font-size:13px; padding:7px 10px;
+    border:1.3px solid var(--board-line); border-radius:2px; width:260px; max-width:60vw;
+    background:#fff; outline:none;
+  }
+  .pool-search:focus{ border-color:var(--accent); }
+  .pool-count{ font-size:12px; color:var(--ink-soft); }
+  .pool-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px;
+  }
+  .pool-card{
+    background:var(--card-bg); border:1.3px solid var(--ink); border-left-width:6px;
+    box-shadow:var(--paper-shadow); padding:12px 14px 14px; position:relative;
+  }
+  .pool-card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:6px; margin-bottom:8px; }
+  .pool-name{
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:15px; outline:none;
+    border:none; background:transparent; width:100%; padding:2px 0; border-bottom:1px solid transparent;
+  }
+  .pool-name:focus{ border-bottom-color:var(--accent); }
+  .pool-name:empty::before{ content:"Tech name"; color:#c9c2b4; font-style:italic; font-weight:400; }
+  .pool-del{
+    background:none; border:1px solid var(--board-line); border-radius:2px; color:var(--ink-soft);
+    font-size:13px; line-height:1; padding:3px 6px; flex-shrink:0;
+  }
+  .pool-del:hover{ border-color:var(--danger); color:var(--danger); }
+  .pool-row2{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+  .pool-field label{
+    display:block; font-family:'Oswald',sans-serif; font-weight:600; font-size:9.5px;
+    letter-spacing:0.5px; color:var(--ink-soft); margin-bottom:2px;
+  }
+  .pool-field input, .pool-field textarea{
+    width:100%; font-family:'IBM Plex Sans',sans-serif; font-size:12.5px; color:var(--ink);
+    border:1.3px solid var(--board-line); border-radius:2px; padding:5px 7px; background:#fff; outline:none;
+  }
+  .pool-field input:focus, .pool-field textarea:focus{ border-color:var(--accent); }
+  .pool-field input.email-invalid{ border-color:#C97A5C; background:#FCF1EC; }
+  .pool-email-row{ display:flex; gap:6px; align-items:flex-end; margin-bottom:8px; }
+  .pool-email-row .pool-field{ flex:1; }
+  .pool-email-btn, .pool-email-btn-disabled{
+    font-family:'IBM Plex Sans',sans-serif; font-size:11.5px; font-weight:600;
+    padding:6px 10px; border-radius:2px; text-decoration:none; white-space:nowrap;
+  }
+  .pool-email-btn{ background:var(--ink); color:var(--header-text); border:1.5px solid var(--ink); }
+  .pool-email-btn:hover{ background:var(--accent); border-color:var(--accent); }
+  .pool-email-btn-disabled{
+    background:transparent; color:#B7B0A0; border:1.5px dashed var(--board-line); cursor:default;
+  }
+  .pool-detail textarea{ min-height:52px; resize:vertical; }
+  .pool-empty{ font-size:13px; color:var(--ink-soft); font-style:italic; padding:16px 2px; }
+
+  /* ============ GRID ============ */
+  .grid-wrap{
+    overflow:auto;
+    max-height:78vh;
+    border:1.5px solid var(--board-line);
+    background:var(--card-bg);
+  }
+  table.grid{
+    border-collapse:separate;
+    border-spacing:0;
+    width:100%;
+  }
+  .corner{
+    position:sticky; top:0; left:0; z-index:5;
+    background:var(--header-bg);
+    min-width:170px;
+  }
+  th.week-head{
+    position:sticky; top:0; z-index:3;
+    background:var(--header-bg);
+    color:var(--header-text);
+    padding:9px 10px;
+    min-width:150px;
+    border-left:1px solid #3A3F47;
+    text-align:left;
+  }
+  .week-title{
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:13.5px;
+    letter-spacing:0.2px;background:transparent;border:none;color:var(--header-text);
+    outline:none;width:100%;padding:1px 0;
+  }
+  .week-date-input{
+    font-family:'IBM Plex Sans',sans-serif; font-size:11px;
+    background:#2E3239; border:1px solid #444951; border-radius:2px;
+    color:var(--header-text); padding:2px 4px; width:100%;
+    color-scheme: dark;
+  }
+  .week-daystrip{
+    display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;
+  }
+  .daystrip-day{
+    font-size:9px; font-weight:600; color:#B9B4A6;
+    background:#2E3239; border-radius:2px; padding:2px 4px;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+  .week-nodate{ font-size:10.5px; color:#8A8F98; font-style:italic; margin-top:4px; }
+  .col-actions{display:flex;justify-content:flex-end;margin-top:2px;}
+  .mini-x{background:none;border:none;color:#C9A79C;font-size:14px;line-height:1;padding:0 2px;opacity:.7;}
+  .mini-x:hover{opacity:1;color:#fff;}
+  .mini-move{background:none;border:none;color:#9CA0A6;font-size:11px;line-height:1;padding:0 2px;opacity:.75;}
+  .mini-move:hover{opacity:1;color:#fff;}
+  .mini-move:disabled{opacity:.2;cursor:default;}
+  .add-week-cell{
+    position:sticky; top:0; z-index:3;
+    background:var(--header-bg);
+    padding:6px;
+    vertical-align:middle;
+    min-width:80px;
+  }
+  .add-week-cell button{
+    width:100%;height:100%;min-height:38px;
+    border:1.5px dashed #565B63;background:transparent;color:#B9B4A6;
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:12px;border-radius:2px;
+  }
+  .add-week-cell button:hover{border-color:#fff;color:#fff;}
+
+  td.district-head{
+    position:sticky; left:0; z-index:2;
+    background:var(--header-bg);
+    color:var(--header-text);
+    padding:8px 10px;
+    vertical-align:middle;
+    border-top:1px solid #3A3F47;
+  }
+  td.district-head.bench-head{ background:#565B63; }
+  .district-title{
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:13px;
+    letter-spacing:0.2px;background:transparent;border:none;color:var(--header-text);
+    outline:none;width:100%;
+  }
+  .district-row-actions{display:flex;justify-content:space-between;align-items:center;gap:4px;}
+
+  /* ============ BENCH SHELF ============ */
+  .bench-label-row td{
+    position:sticky; left:0; z-index:2;
+    background:var(--board-bg);
+    padding-top:14px;
+    border:none;
+  }
+  td.district-head.bench-head .bench-eyebrow{ color:#D9D4C7; }
+  .bench-eyebrow{
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:10.5px;
+    letter-spacing:1px; color:var(--ink-soft);
+  }
+  tr.bench-row td.cell{ background:#F1EFE8; }
+  tr.bench-row td.cell.has-techs{ background:#EDE6D2; }
+  tr.bench-row{ border-bottom:3px solid var(--ink); }
+  .bench-collapse-btn{
+    background:none;border:1px solid #7A7F87;color:var(--header-text);
+    font-size:11px;line-height:1;padding:2px 6px;border-radius:2px;
+  }
+  .bench-collapse-btn:hover{background:#6A6F77;}
+  .bench-collapsed-hint{
+    font-size:11px; color:var(--ink-soft); font-style:italic; padding:6px 2px;
+  }
+
+  td.cell{
+    border-top:1px solid var(--board-line);
+    border-left:1px solid var(--board-line);
+    padding:6px;
+    vertical-align:top;
+    min-width:150px;
+    min-height:48px;
+    transition:background-color .35s ease;
+    position:relative;
+  }
+  td.cell.has-techs{
+    background:#F7EEDC;
+    box-shadow:inset 0 0 0 1.5px #E4D3A8;
+  }
+  td.cell.drag-over{ background:#F3E9D8; outline:2px dashed var(--accent); outline-offset:-2px; }
+  td.cell.just-placed{
+    animation: cellFlash 0.7s ease;
+  }
+  @keyframes cellFlash{
+    0%{ background:#E8A560; box-shadow:inset 0 0 0 2px var(--accent); }
+    100%{ background:#F7EEDC; box-shadow:inset 0 0 0 1.5px #E4D3A8; }
+  }
+
+  .add-district-row td{
+    padding:6px 10px;
+  }
+  .add-district-row button{
+    border:1.5px dashed var(--board-line);background:transparent;color:var(--ink-soft);
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:12px;padding:6px 10px;border-radius:2px;
+  }
+  .add-district-row button:hover{border-color:var(--ink);color:var(--ink);}
+
+  /* ============ TECH CHIP ============ */
+  .chip{
+    background:var(--card-bg);
+    border:1.3px solid var(--ink);
+    border-left-width:6px;
+    box-shadow:var(--paper-shadow);
+    padding:5px 16px 5px 8px;
+    margin-top:10px;
+    cursor:grab;
+    position:relative;
+  }
+  .chip:first-child{margin-top:0;}
+  .chip:hover{transform:translate(-1px,-1px);box-shadow:var(--paper-shadow-hover);}
+  .chip.dragging{opacity:0.35;}
+  .chip-top{display:flex;align-items:flex-start;gap:4px;}
+  .chip-name{
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:12.5px;outline:none;flex:1;min-width:0;
+  }
+  .chip-name:empty::before{content:"Tech name";color:#c9c2b4;font-style:italic;font-weight:400;}
+  .chip-x{
+    position:absolute; top:-7px; right:-7px;
+    width:17px; height:17px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--card-bg);
+    border:1.3px solid var(--ink);
+    border-radius:50%;
+    color:var(--ink-soft);
+    font-size:12px; line-height:1; padding:0;
+    box-shadow:1px 1px 0 rgba(34,38,43,0.18);
+  }
+  .chip-x:hover{color:#fff;background:var(--danger);border-color:var(--danger);}
+  .chip-profile-btn{
+    position:absolute; top:-7px; left:-7px;
+    width:17px; height:17px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--ink);
+    border:1.3px solid var(--ink);
+    border-radius:50%;
+    color:var(--header-text);
+    font-family:'Oswald',sans-serif; font-weight:700;
+    font-size:10px; line-height:1; padding:0;
+    box-shadow:1px 1px 0 rgba(34,38,43,0.18);
+  }
+  .chip-profile-btn.has-detail{ background:var(--accent); border-color:var(--accent); }
+  .chip-profile-btn:hover{ background:#3E4450; border-color:#3E4450; }
+
+  /* ============ PROFILE MODAL ============ */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(20,22,26,0.55);
+    display:none; align-items:center; justify-content:center; z-index:50;
+    padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal-card{
+    background:var(--card-bg);
+    border:1.5px solid var(--ink);
+    box-shadow:5px 5px 0 rgba(34,38,43,0.25);
+    width:100%; max-width:380px;
+    padding:20px 22px 18px;
+  }
+  .modal-card h2{
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:19px;
+    margin:0 0 14px; letter-spacing:0.2px; color:var(--ink);
+  }
+  .modal-field{ margin-bottom:12px; }
+  .modal-field label{
+    display:block; font-family:'Oswald',sans-serif; font-weight:600; font-size:10.5px;
+    letter-spacing:0.6px; color:var(--ink-soft); margin-bottom:4px;
+  }
+  .modal-field input, .modal-field textarea{
+    width:100%; font-family:'IBM Plex Sans',sans-serif; font-size:13px; color:var(--ink);
+    border:1.3px solid var(--board-line); border-radius:2px; padding:7px 8px;
+    background:#fff; outline:none;
+  }
+  .modal-field input:focus, .modal-field textarea:focus{ border-color:var(--accent); }
+  .modal-field textarea{ min-height:90px; resize:vertical; font-family:'IBM Plex Sans',sans-serif; }
+  .modal-actions{ display:flex; justify-content:flex-end; margin-top:6px; }
+  .modal-card.wide{ max-width:600px; }
+  .archive-list{ max-height:60vh; overflow:auto; margin-top:4px; }
+  .archive-empty{ font-size:13px; color:var(--ink-soft); font-style:italic; padding:10px 2px; }
+  .archive-entry{
+    border:1.3px solid var(--board-line); border-left:6px solid var(--ink);
+    padding:10px 12px; margin-bottom:10px; background:#FBF9F4;
+  }
+  .archive-entry-top{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .archive-entry-title{ font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; color:var(--ink); }
+  .archive-entry-sub{ font-size:10.5px; color:var(--ink-soft); }
+  .archive-breakdown{ margin-top:8px; font-size:12px; color:var(--ink); line-height:1.6; }
+  .archive-breakdown strong{ color:var(--ink-soft); font-weight:600; }
+  .archive-actions{ display:flex; gap:8px; margin-top:10px; }
+  .archive-actions .btn{ font-size:11.5px; padding:5px 10px; }
+  .chip-note{
+    font-size:10.5px;color:var(--accent);font-weight:600;outline:none;margin-top:2px;min-height:12px;
+  }
+  .chip-note:empty::before{content:"+ note";color:#c9c2b4;font-weight:400;font-style:italic;}
+  .chip-district-select{
+    width:100%; margin-top:5px; font-family:'IBM Plex Sans',sans-serif; font-size:11px;
+    color:var(--ink); background:#F4F1E8; border:1.3px solid var(--board-line); border-radius:2px;
+    padding:3px 4px; outline:none; cursor:pointer;
+  }
+  .chip-district-select:hover{ border-color:var(--ink); }
+  .chip-district-select:focus{ border-color:var(--accent); }
+  .chip-reorder{
+    display:flex; justify-content:flex-end; gap:2px; margin-top:3px;
+  }
+  .chip-move-btn{
+    background:none; border:1px solid var(--board-line); border-radius:2px;
+    color:var(--ink-soft); font-size:9px; line-height:1; padding:1px 4px;
+  }
+  .chip-move-btn:hover{ border-color:var(--ink); color:var(--ink); }
+  .chip-move-btn:disabled{ opacity:.25; cursor:default; }
+
+  .empty-cell-hint{font-size:10.5px;color:#B7B0A0;font-style:italic;text-align:center;padding:8px 2px;}
+  td.cell.has-copy-space{ padding-top:30px; }
+  .cell-copy-controls{
+    position:absolute; top:3px; right:3px; display:flex; gap:2px; z-index:1;
+  }
+  .cell-copy-btn{
+    background:rgba(255,253,248,0.9); border:1px solid var(--board-line); border-radius:2px;
+    color:var(--ink-soft); font-size:10px; line-height:1; padding:2px 4px;
+  }
+  .cell-copy-btn:hover{ border-color:var(--ink); color:var(--ink); background:#fff; }
+  .cell-copy-btn:disabled{ opacity:0; pointer-events:none; }
+
+  /* ============ VIEW TOGGLE ============ */
+  .tab-bar{ align-items:flex-end; flex-wrap:wrap; }
+  .view-toggle{ margin-left:auto; display:flex; align-items:center; gap:8px; padding-bottom:5px; }
+  .view-toggle-label{ font-family:'Oswald',sans-serif; font-weight:600; font-size:10.5px; letter-spacing:0.8px; color:var(--ink-soft); }
+  .seg{ display:flex; }
+  .seg button{
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:12px; letter-spacing:0.3px;
+    border:2px solid var(--ink); background:var(--card-bg); color:var(--ink); padding:4px 14px;
+  }
+  .seg button + button{ border-left:none; }
+  .seg button.active{ background:var(--ink); color:var(--header-text); }
+
+  /* ============ DAY VIEW ============ */
+  th.day-head{
+    position:sticky; top:0; z-index:3;
+    background:#2E3239; color:var(--header-text);
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:11.5px; letter-spacing:0.2px;
+    padding:5px 6px; border-left:1px solid #3A3F47; border-top:1px solid #3A3F47; text-align:center;
+  }
+  table.grid.day-mode td.cell{ min-width:150px; padding:6px; }
+  table.grid.day-mode td.cell.has-copy-space{ padding-top:30px; }
+  table.grid.day-mode tr.bench-row td.cell.has-copy-space{ padding-top:30px; }
+  table.grid.day-mode th.week-head{ min-width:0; }
+  .chip.day-override{ background:#FFF6E2; }
+  .chip-badge{
+    display:inline-block; font-size:9px; font-weight:600; color:#fff; background:var(--accent);
+    border-radius:2px; padding:1px 5px; margin-top:4px;
+  }
+  .chip-reset{
+    display:block; margin-top:4px; background:none; border:1px dashed var(--accent); border-radius:2px;
+    color:var(--accent); font-size:9.5px; font-weight:600; padding:1px 5px;
+  }
+  .chip-reset:hover{ background:var(--accent); color:#fff; }
+
+  /* ============ LAYOUT / SORT / COUNTS / KEY ============ */
+  .view-toggle .toggle-gap{ width:10px; }
+  .corner-label{ font-family:'Oswald',sans-serif; font-weight:600; font-size:10.5px; letter-spacing:1px; color:#B9B4A6; padding:8px 10px 2px; }
+  .corner-sort{
+    display:block; margin:0 10px 6px; width:calc(100% - 20px); font-family:'IBM Plex Sans',sans-serif; font-size:11px;
+    background:#2E3239; color:var(--header-text); border:1px solid #444951; border-radius:2px; padding:3px 4px; cursor:pointer;
+  }
+  .bench-count{
+    display:inline-block; margin-top:5px; font-family:'Oswald',sans-serif; font-weight:600; font-size:10.5px; letter-spacing:0.4px;
+    color:#1B1D21; background:#E4B85A; border-radius:2px; padding:1px 7px;
+  }
+  .bench-count.zero{ background:#3A3F47; color:#B9B4A6; }
+  th.day-head .bench-count{ display:block; margin:3px auto 0; width:fit-content; }
+  td.tech-head{ min-width:190px; border-left:6px solid #888; }
+  .tech-head-top{ display:flex; align-items:center; gap:6px; }
+  .tech-head .district-title{ flex:1; min-width:0; }
+  .tech-head-role{ font-size:10.5px; color:#B9B4A6; margin-top:1px; min-height:12px; }
+  .tech-head .tech-prof{
+    width:17px; height:17px; border-radius:50%; border:1.3px solid #B9B4A6; background:transparent; color:#F4F1E8;
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:10px; line-height:1; padding:0; flex:none;
+  }
+  .tech-head .tech-prof:hover{ background:#3E4450; }
+  td.tech-cell{ background:#F1EFE8; min-width:150px; }
+  td.tech-cell.has-techs{ background:#F7EEDC; }
+  td.tech-cell.day-override-cell{ background:#FFF6E2; }
+  td.tech-cell.just-placed{ animation: cellFlash 0.7s ease; }
+  .tech-cell .chip-district-select{ margin-top:0; }
+  .tech-cell .chip-note{ margin-top:4px; }
+  .add-tech-row td{ padding:6px 10px; }
+  .add-tech-row button{
+    border:1.5px dashed var(--board-line);background:transparent;color:var(--ink-soft);
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:12px;padding:6px 10px;border-radius:2px;
+  }
+  .add-tech-row button:hover{border-color:var(--ink);color:var(--ink);}
+
+  .key-bar{
+    display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; margin:0 0 10px; padding:7px 12px;
+    background:var(--card-bg); border:1.5px solid var(--board-line);
+  }
+  .key-title{ font-family:'Oswald',sans-serif; font-weight:600; font-size:11px; letter-spacing:1px; color:var(--ink-soft); }
+  .key-item{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink); }
+  .key-swatch{ width:14px; height:14px; border:1.3px solid var(--ink); border-radius:2px; flex:none; display:inline-block; }
+  .key-count{ color:var(--ink-soft); font-size:11px; }
+  .key-empty{ font-size:12px; color:var(--ink-soft); font-style:italic; }
+  .key-edit-btn, .key-add-btn{
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:11px; letter-spacing:0.3px;
+    border:1.3px solid var(--ink); background:var(--card-bg); color:var(--ink); padding:3px 9px; border-radius:2px; margin-left:auto;
+  }
+  .key-add-btn{ margin-left:0; border-style:dashed; }
+  .key-edit-btn.active{ background:var(--ink); color:var(--header-text); }
+  .key-item input[type=color]{ width:26px; height:22px; padding:0; border:1.3px solid var(--ink); background:none; cursor:pointer; }
+  .key-item input[type=text]{
+    font-family:'IBM Plex Sans',sans-serif; font-size:12px; border:1.3px solid var(--board-line); padding:3px 6px; width:140px; border-radius:2px; background:#fff;
+  }
+  .key-item .key-del{ background:none; border:none; color:var(--ink-soft); font-size:16px; line-height:1; padding:0 3px; }
+  .key-item .key-del:hover{ color:var(--danger); }
+  .pool-sen{ margin-bottom:8px; }
+  .pool-sen-input{ width:90px !important; }
+  .chip-sen{ font-family:'Oswald',sans-serif; font-weight:700; font-size:11px; color:var(--accent); margin-right:2px; line-height:1.5; flex:none; }
+  .tech-sen{ font-family:'Oswald',sans-serif; font-weight:700; font-size:12px; color:#E4B85A; flex:none; }
+  /* ---- assigned = green, done = blue ---- */
+  table.grid td.tech-cell.has-techs{ background:#BFEFC8 !important; box-shadow:inset 5px 0 0 #1E9E48 !important; }
+  table.grid td.tech-cell.all-done{ background:#CBE0FA !important; box-shadow:inset 5px 0 0 #2D6FD6 !important; }
+  table.grid tr:not(.bench-row) td.cell.has-techs:not(.tech-cell){ background:#DDF5E2; box-shadow:inset 0 0 0 1.5px #8ED39D; }
+  .chip.done{ background:#DCE9FB; }
+  .chip.done .chip-name{ text-decoration:line-through; opacity:.7; }
+  .fh-tag{ display:inline-block; margin-top:3px; font-family:'Oswald',sans-serif; font-weight:600; font-size:9.5px; letter-spacing:.4px; color:#fff; background:#2D6FD6; border-radius:2px; padding:1px 6px; }
+  .chip.extra-job{ border-left-style:double; }
+  .extra-tag{ font-family:'Oswald',sans-serif; font-weight:600; font-size:9px; letter-spacing:.5px; color:var(--accent); margin-bottom:1px; }
+  .chip-fields, .job-fields{ display:flex; gap:4px; align-items:center; margin-top:5px; }
+  .chip-time, .chip-wo, .job-fields input[type=time], .job-fields input[type=text], .chip-fields input[type=time], .chip-fields input[type=text]{
+    font-family:'IBM Plex Sans',sans-serif; font-size:11px; padding:2px 3px; border:1.3px solid var(--board-line);
+    background:#fff; border-radius:2px; color:var(--ink); min-width:0;
+  }
+  .job-fields input[type=time], .chip-fields input[type=time]{ width:84px; flex:none; }
+  .job-fields input[type=text], .chip-fields input[type=text]{ flex:1; width:60px; }
+  .chip-done, .job-done{ display:flex; align-items:center; gap:3px; font-size:10px; font-weight:600; color:var(--ink-soft); white-space:nowrap; cursor:pointer; }
+  .chip-done input, .job-done input{ margin:0; cursor:pointer; }
+  .job-row{ padding-bottom:7px; margin-bottom:7px; border-bottom:1px dashed rgba(0,0,0,.2); }
+  .job-row:last-of-type{ border-bottom:none; margin-bottom:2px; }
+  .job-row.done .chip-district-select{ text-decoration:line-through; }
+  .job-x{ background:none; border:none; font-size:16px; line-height:1; color:var(--ink-soft); padding:0 2px; cursor:pointer; }
+  .job-x:hover{ color:var(--danger); }
+  .job-add-btn{ font-family:'Oswald',sans-serif; font-weight:600; font-size:10.5px; border:1.3px dashed var(--ink-soft); background:transparent; color:var(--ink); padding:2px 8px; border-radius:2px; margin-top:2px; cursor:pointer; }
+  .job-add-btn:hover{ background:rgba(255,255,255,.6); }
+  tr.empty-job .district-head{ opacity:.72; }
+  .empty-job-hint{ font-size:10px; color:#B9B4A6; font-style:italic; margin-top:2px; }
+  .district-add-btn{
+    width:100%; margin-top:6px; font-family:'IBM Plex Sans',sans-serif; font-size:11px; text-align:left;
+    color:var(--header-text); background:#2E3239; border:1px solid #444951; border-radius:2px; padding:4px 6px; cursor:pointer;
+  }
+  .district-add-btn:hover{ border-color:#fff; }
+  .tech-picker{
+    position:fixed; z-index:70; width:280px; max-height:70vh; overflow:auto; background:#fff; border:1.5px solid var(--ink);
+    box-shadow:5px 5px 0 rgba(34,38,43,0.25); padding:10px 12px;
+  }
+  .tech-picker h3{ font-family:'Oswald',sans-serif; font-size:14px; margin:0 0 2px; color:var(--ink); }
+  .tech-picker .pick-hint{ font-size:11px; color:var(--ink-soft); margin-bottom:6px; }
+  .tech-picker .pick-sec{ font-family:'Oswald',sans-serif; font-weight:600; font-size:10.5px; letter-spacing:.6px; color:var(--ink-soft); margin:8px 0 2px; display:flex; justify-content:space-between; align-items:center; }
+  .tech-picker .pick-sec button{ font-size:10px; border:none; background:none; color:var(--accent); cursor:pointer; text-decoration:underline; padding:0; }
+  .tech-picker label.pick-row{ display:flex; gap:7px; align-items:center; padding:3px 4px; font-size:12.5px; cursor:pointer; border-radius:2px; }
+  .tech-picker label.pick-row:hover{ background:#F1EFE8; }
+  .tech-picker label.pick-row.busy{ color:var(--ink-soft); }
+  .tech-picker .pick-sub{ font-size:10.5px; color:var(--ink-soft); margin-left:auto; }
+  .tech-picker .pick-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:10px; position:sticky; bottom:-10px; background:#fff; padding:6px 0 2px; }
+  .week-pick{ display:flex; align-items:stretch; }
+  .week-pick button{ border:1.5px solid var(--ink); background:var(--card-bg); color:var(--ink); padding:3px 8px; font-size:11px; cursor:pointer; }
+  .week-pick button:disabled{ opacity:.35; cursor:default; }
+  .week-pick select{ border:1.5px solid var(--ink); border-left:none; border-right:none; background:var(--card-bg); font-family:'Oswald',sans-serif; font-weight:600; font-size:11.5px; padding:3px 6px; color:var(--ink); max-width:190px; }
+  .pool-color{ margin-top:8px; }
+  .pool-color > label{ display:block; font-family:'Oswald',sans-serif; font-weight:600; font-size:10.5px; letter-spacing:0.6px; color:var(--ink-soft); margin-bottom:4px; }
+  .pool-swatches{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+  .pool-sw{ width:20px; height:20px; border:1.3px solid var(--board-line); border-radius:3px; padding:0; cursor:pointer; }
+  .pool-sw.key{ border-color:var(--ink); border-radius:50%; }
+  .pool-sw.sel{ outline:2px solid var(--ink); outline-offset:1px; }
+  .pool-swatches input[type=color]{ width:24px; height:22px; padding:0; border:1.3px solid var(--board-line); background:none; cursor:pointer; }
+  .pool-sw-sep{ width:1px; height:18px; background:var(--board-line); margin:0 3px; }
+  body.previewing #keyBar *{ pointer-events:none !important; }
+
+  /* ============ BENCH: SHORT + SCROLLABLE ============ */
+  .bench-scroll{ max-height:190px; overflow-y:auto; padding:9px 9px 6px 9px; }
+  tr.bench-row td.cell{ padding:2px; }
+  tr.bench-row td.cell.has-copy-space{ padding-top:30px; }
+  .chip.drop-before{ box-shadow:0 -5px 0 0 var(--accent), var(--paper-shadow); }
+
+  /* ============ CELL NOTE + DISTRICT QUICK-ADD ============ */
+  .cell-note{
+    font-size:10.5px; color:var(--ink); outline:none; margin-top:8px; padding:3px 6px; min-height:18px;
+    border-left:3px solid var(--accent); background:rgba(181,86,60,0.08); font-style:italic;
+  }
+  .cell-note:empty{ border-left-color:transparent; background:transparent; }
+  .cell-note:empty::before{ content:"+ cell note"; color:#B7B0A0; }
+  .cell-note:focus{ background:#fff; border-left-color:var(--accent); }
+  .district-add-select{
+    width:100%; margin-top:6px; font-family:'IBM Plex Sans',sans-serif; font-size:11px;
+    color:var(--header-text); background:#2E3239; border:1px solid #444951; border-radius:2px;
+    padding:3px 4px; outline:none; cursor:pointer; color-scheme:dark;
+  }
+  .district-add-select:hover:not(:disabled){ border-color:#fff; }
+  .district-add-select:disabled{ opacity:.5; cursor:default; }
+
+  /* ============ SYNC STATUS + HISTORY ============ */
+  .sync-note.sync-saving{ color:var(--ink-soft); }
+  .sync-note.sync-offline{ color:var(--danger); font-weight:600; }
+  .sync-note.sync-preview{ color:var(--accent); font-weight:600; }
+  .preview-bar{
+    display:none; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    background:#F3D9A4; border:2px solid var(--ink); box-shadow:var(--paper-shadow);
+    padding:9px 14px; margin:10px 0 4px; font-size:13px;
+  }
+  body.previewing .preview-bar{ display:flex; }
+  .preview-actions{ display:flex; gap:8px; }
+  body.previewing #gridTable *, body.previewing #techPoolView *{ pointer-events:none !important; }
+  body.previewing .grid-wrap, body.previewing #techPoolView{ outline:3px solid #E4B85A; outline-offset:-3px; }
+  body.previewing .topbar-actions .btn:not(#historyBtn):not(#exportBtn){ opacity:.4; pointer-events:none; }
+  .history-save{ display:flex; gap:8px; margin:0 0 12px; }
+  .history-save input{
+    flex:1; font-family:'IBM Plex Sans',sans-serif; font-size:13px; padding:7px 9px;
+    border:1.3px solid var(--board-line); border-radius:2px; background:#fff; outline:none;
+  }
+  .history-save input:focus{ border-color:var(--accent); }
+  .history-entry{
+    border:1.3px solid var(--board-line); border-left:6px solid var(--ink);
+    padding:10px 12px; margin-bottom:10px; background:#FBF9F4;
+  }
+  .history-entry.current{ border-left-color:var(--accent); background:#F7EEDC; }
+  .history-entry.named{ border-left-color:#C99A2E; }
+  .history-top{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .history-title{ font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; color:var(--ink); }
+  .history-rel{ font-size:11px; color:var(--ink-soft); white-space:nowrap; }
+  .history-sub{ font-size:12px; color:var(--ink-soft); margin-top:3px; line-height:1.45; }
+
+  /* ============ PDF / PRINT ============ */
+  #printRoot{ display:none; }
+  @media print{
+    @page{ size:landscape; margin:0.4in; }
+    body.printing{ background:#fff !important; padding:0 !important; min-height:0; }
+    body.printing > *:not(#printRoot){ display:none !important; }
+    body.printing #printRoot{ display:block; }
+    body.printing *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .p-page{ page-break-after:always; break-after:page; }
+    .p-page:last-child{ page-break-after:auto; break-after:auto; }
+    .p-head{
+      display:flex; justify-content:space-between; align-items:flex-end;
+      background:#20242B; color:#F4F1E8; padding:10px 14px; border-bottom:4px solid #B5563C;
+    }
+    .p-eyebrow{ font-family:'Oswald',sans-serif; font-weight:600; font-size:9px; letter-spacing:1.5px; color:#B5563C; }
+    .p-head h1{ font-family:'Oswald',sans-serif; font-weight:700; font-size:22px; margin:2px 0 0; }
+    .p-sub{ font-family:'Oswald',sans-serif; font-weight:600; font-size:13px; color:#C7C3B7; }
+    table.p-grid{ width:100%; border-collapse:collapse; table-layout:fixed; margin-top:8px; }
+    .p-grid th{
+      background:#20242B; color:#F4F1E8; font-family:'Oswald',sans-serif; font-weight:600;
+      font-size:11px; padding:5px 6px; text-align:left; border:1px solid #3A3F47;
+    }
+    .p-grid th.p-corner{ width:1.45in; }
+    .p-grid td{ border:1px solid #BDB8AA; vertical-align:top; padding:3px 5px; font-size:9.5px; font-family:'IBM Plex Sans',sans-serif; color:#22262B; }
+    .p-grid td.p-dist{ background:#20242B; color:#F4F1E8; font-family:'Oswald',sans-serif; font-weight:600; font-size:11px; }
+    .p-grid tr{ break-inside:avoid; }
+    .p-grid tr.p-bench td{ background:#EDE6D2; }
+    .p-grid tr.p-bench td.p-dist{ background:#565B63; }
+    .p-tech{ border-left:4px solid #888; padding:0 0 0 5px; margin-bottom:2px; break-inside:avoid; }
+    .p-name{ font-weight:600; }
+    .p-role{ color:#5A5F66; font-size:8.5px; }
+    .p-note{ color:#B5563C; font-style:italic; font-size:8.5px; }
+    .p-cellnote{ margin-top:3px; padding:2px 5px; background:#F7EEDC; border-left:3px solid #B5563C; font-style:italic; }
+    .p-bench-list{ columns:2; column-gap:8px; }
+    .p-bench-item{ break-inside:avoid; font-size:8.5px; margin-bottom:1px; }
+    .p-legend{ display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:6px; font-size:9px; font-family:'IBM Plex Sans',sans-serif; color:#22262B; }
+    .p-legend span.sw{ display:inline-block; width:9px; height:9px; margin-right:4px; border:1px solid #22262B; vertical-align:-1px; }
+    .p-job{ font-size:8.5px; color:#444951; }
+    .p-job b{ color:#1E7A39; }
+    .p-bc{ display:block; font-size:8.5px; font-weight:400; color:#E4B85A; }
+    .p-grid td.p-techname{ background:#20242B; color:#F4F1E8; font-family:'Oswald',sans-serif; font-weight:600; font-size:11px; border-left:5px solid #888; }
+    .p-grid td.p-techname .p-role{ display:block; color:#B9B4A6; font-weight:400; font-family:'IBM Plex Sans',sans-serif; }
+    .p-grid td.p-unassigned{ background:#EDE6D2; color:#6A6F77; font-style:italic; }
+    .p-grid thead{ display:table-header-group; }
+    .p-foot{ margin-top:6px; font-size:8.5px; color:#5A5F66; display:flex; justify-content:space-between; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title-block">
+    <a href="index.html">&larr; NCD INTERNAL</a>
+    <h1>Field Crew Board</h1>
+    <p>Shared board &mdash; anyone with this link can view and edit it. Drag a tech into a district, or use the dropdowns.</p>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn" id="addTechBtn">+ Add tech</button>
+    <button class="btn" id="archiveBtn">Archive</button>
+    <button class="btn" id="historyBtn">History</button>
+    <button class="btn" id="refreshBtn">Refresh</button>
+    <button class="btn" id="exportBtn">Export PDF</button>
+    <button class="btn" id="exportXlsBtn">Spreadsheet</button>
+    <button class="btn" id="resetBtn">Reset to sample data</button>
+    <button class="btn primary" id="addWeekBtn">+ Add week</button>
+  </div>
+</div>
+<div class="preview-bar" id="previewBar">
+  <div><strong>Viewing a past version</strong> <span id="previewWhen"></span> &mdash; read-only, nothing here is saved.</div>
+  <div class="preview-actions">
+    <button class="btn primary" id="previewRestoreBtn">Restore this version</button>
+    <button class="btn" id="previewBackBtn">Back to current</button>
+  </div>
+</div>
+<div class="sync-note" id="syncNote"></div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" id="tabBoardBtn">Board</button>
+  <button class="tab-btn" id="tabPoolBtn">Tech Pool</button>
+  <div class="view-toggle" id="viewToggle">
+    <span class="view-toggle-label">WEEK</span>
+    <div class="week-pick">
+      <button id="weekPrevBtn" title="Previous week">&#9664;</button>
+      <select id="weekPickSel" title="Show one week at a time, or all weeks"></select>
+      <button id="weekNextBtn" title="Next week">&#9654;</button>
+    </div>
+    <span class="toggle-gap"></span>
+    <span class="view-toggle-label">VIEW</span>
+    <div class="seg">
+      <button id="viewWeekBtn" class="active">Week</button>
+      <button id="viewDayBtn">Day</button>
+    </div>
+    <span class="toggle-gap"></span>
+    <span class="view-toggle-label">LAYOUT</span>
+    <div class="seg">
+      <button id="layoutDistrictBtn" class="active">By district</button>
+      <button id="layoutTechBtn">By tech</button>
+    </div>
+  </div>
+</div>
+
+<div class="key-bar" id="keyBar"></div>
+
+<div id="boardView">
+  <div class="grid-wrap">
+    <table class="grid" id="gridTable"></table>
+  </div>
+</div>
+
+<div id="printRoot"></div>
+
+<div id="techPoolView" style="display:none;">
+  <div class="pool-toolbar">
+    <input type="text" class="pool-search" id="poolSearch" placeholder="Search techs by name&hellip;">
+    <div class="pool-count" id="poolCount"></div>
+  </div>
+  <div class="pool-grid" id="poolGrid"></div>
+</div>
+
+<div class="modal-overlay" id="profileOverlay">
+  <div class="modal-card">
+    <h2>Tech profile</h2>
+    <div class="modal-field">
+      <label for="profileName">Name</label>
+      <input type="text" id="profileName">
+    </div>
+    <div class="modal-field">
+      <label for="profileRole">Role / title</label>
+      <input type="text" id="profileRole" placeholder="e.g. Lead Technician">
+    </div>
+    <div class="modal-field">
+      <label for="profilePhone">Phone</label>
+      <input type="text" id="profilePhone" placeholder="e.g. (516) 555-0142">
+    </div>
+    <div class="modal-field">
+      <label for="profileEmail">Email</label>
+      <input type="email" id="profileEmail" placeholder="e.g. jsmith@ncdcom.com">
+      <div class="modal-actions" style="justify-content:flex-start;margin-top:6px;" id="profileEmailBtnWrap"></div>
+    </div>
+    <div class="modal-field">
+      <label for="profileDetail">Detail</label>
+      <textarea id="profileDetail" placeholder="Certifications, specialties, or detail of work"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="profileCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="jobOverlay">
+  <div class="modal-card">
+    <h2>Add a job to this week</h2>
+    <div class="modal-field">
+      <label for="jobName">Job or school</label>
+      <input type="text" id="jobName" list="jobLibrary" autocomplete="off" placeholder="Start typing &mdash; past jobs will suggest">
+      <datalist id="jobLibrary"></datalist>
+    </div>
+    <div class="modal-field" id="jobWeekField" style="display:none;">
+      <label for="jobWeekSel">Add to</label>
+      <select id="jobWeekSel"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="jobCancelBtn">Cancel</button>
+      <button class="btn primary" id="jobAddBtn">Add job</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="historyOverlay">
+  <div class="modal-card wide">
+    <h2>Version history</h2>
+    <div class="history-save">
+      <input type="text" id="historyName" maxlength="120" placeholder="Name the board as it is now, e.g. &quot;Fall schedule final&quot;">
+      <button class="btn primary" id="historySaveBtn">Save version</button>
+    </div>
+    <div class="archive-list" id="historyList"></div>
+    <div class="modal-actions">
+      <button class="btn" id="historyCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="archiveOverlay">
+  <div class="modal-card wide">
+    <h2>Archived weeks</h2>
+    <div class="archive-list" id="archiveList"></div>
+    <div class="modal-actions">
+      <button class="btn" id="archiveCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const COLORS = ["#3B6E8F","#B5563C","#5B7F5E","#C99A2E","#6B5B7A","#2E8B8B","#8C4A3C","#8A6FA0","#7A8450","#4A6FA5"];
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+
+  function seedData(){
+    const techNames = [
+      "Chris DiAngelo","Juan Concepcion","Mike Mullen Jr.","Mike Jack","Sakiris Diaz",
+      "Miguel Martinez","Frank Gioielli","Piet","Gerald Abt","Jarrett Abt",
+      "Anthony DiAngelo","Shaun McKee","Kevin Miranda","Rafael Abreu","Tayfun Uzun",
+      "Rafy","Ernie","Mike Mullen","Pat Uhlman","Matt Abt","Kevin Bolin","Ed Aukstolis",
+      "Joe Rosario","Bill Murphy"
+    ];
+    const techs = {};
+    techNames.forEach((name,i)=>{
+      const id = uid();
+      techs[name] = { id, name, color: COLORS[i % COLORS.length], role:'', phone:'', email:'', detail:'' };
+    });
+    const t = name => techs[name].id;
+
+    const districts = [
+      { id:'bench', label:'Bench / Unassigned' },
+      { id: uid(), label:'Carle Place' },
+      { id: uid(), label:'East Williston' },
+      { id: uid(), label:'Hempstead' },
+      { id: uid(), label:'Freeport' },
+      { id: uid(), label:'Lynbrook' },
+      { id: uid(), label:'Floral Park' },
+      { id: uid(), label:'Manhasset' },
+      { id: uid(), label:'Syosset' },
+      { id: uid(), label:'Oceanside' },
+      { id: uid(), label:'East Meadow' },
+      { id: uid(), label:'North Babylon' },
+    ];
+    const d = label => label==='bench' ? 'bench' : districts.find(x=>x.label===label).id;
+
+    const weeks = [
+      { id: uid(), date:'2026-08-10' },
+      { id: uid(), date:'2026-08-17' },
+      { id: uid(), date:'2026-08-24' },
+      { id: uid(), date:'2026-08-31' },
+    ];
+
+    const placements = {};
+    weeks.forEach(w => placements[w.id] = {});
+
+    function place(weekIdx, techName, districtLabel, note){
+      const w = weeks[weekIdx];
+      placements[w.id][t(techName)] = { districtId: d(districtLabel), note: note || '' };
+    }
+
+    // Week of Aug 10
+    place(0,"Chris DiAngelo","Carle Place");
+    place(0,"Juan Concepcion","Carle Place");
+    place(0,"Mike Mullen Jr.","Carle Place");
+    place(0,"Mike Jack","East Williston","Access control");
+    place(0,"Sakiris Diaz","East Williston");
+    place(0,"Miguel Martinez","Hempstead");
+    place(0,"Frank Gioielli","Hempstead");
+    place(0,"Piet","Hempstead");
+    place(0,"Gerald Abt","Freeport","Freeport PDK");
+    place(0,"Jarrett Abt","Freeport");
+    place(0,"Anthony DiAngelo","Freeport","Giblyn PA (2 days) \u2014 PTO 8/12\u20138/14");
+    place(0,"Shaun McKee","Freeport");
+    place(0,"Tayfun Uzun","Lynbrook");
+    place(0,"Rafy","Lynbrook");
+    place(0,"Ernie","Lynbrook");
+    place(0,"Mike Mullen","Floral Park");
+    place(0,"Pat Uhlman","Floral Park");
+    place(0,"Matt Abt","Syosset","Science rooms / OT?");
+    place(0,"Kevin Bolin","Syosset");
+    place(0,"Ed Aukstolis","Syosset");
+    place(0,"Kevin Miranda","bench","PTO 8/10\u20138/14");
+
+    // Week of Aug 17
+    place(1,"Chris DiAngelo","Carle Place");
+    place(1,"Juan Concepcion","Carle Place");
+    place(1,"Mike Mullen Jr.","Carle Place");
+    place(1,"Mike Jack","East Williston","VS-13 lockdown");
+    place(1,"Sakiris Diaz","East Williston");
+    place(1,"Miguel Martinez","Hempstead");
+    place(1,"Frank Gioielli","Hempstead");
+    place(1,"Piet","Hempstead");
+    place(1,"Gerald Abt","Freeport","Columbus \u2014 door ajar");
+    place(1,"Jarrett Abt","Freeport");
+    place(1,"Anthony DiAngelo","Freeport","PTO 8/17\u20138/20");
+    place(1,"Shaun McKee","North Babylon");
+    place(1,"Kevin Miranda","East Meadow");
+    place(1,"Tayfun Uzun","Lynbrook");
+    place(1,"Rafy","Lynbrook");
+    place(1,"Ernie","Lynbrook");
+    place(1,"Mike Mullen","Floral Park");
+    place(1,"Pat Uhlman","Floral Park");
+    place(1,"Matt Abt","Oceanside");
+    place(1,"Kevin Bolin","Oceanside","N. Babylon camera swaps; Manhasset LPR");
+    place(1,"Ed Aukstolis","Oceanside");
+
+    // Week of Aug 24
+    place(2,"Chris DiAngelo","Carle Place");
+    place(2,"Juan Concepcion","Carle Place");
+    place(2,"Mike Mullen Jr.","Carle Place");
+    place(2,"Mike Jack","East Williston","VS-13 lockdown");
+    place(2,"Sakiris Diaz","East Williston");
+    place(2,"Miguel Martinez","Hempstead");
+    place(2,"Frank Gioielli","Hempstead");
+    place(2,"Piet","Hempstead");
+    place(2,"Gerald Abt","Freeport","Columbus \u2014 door ajar");
+    place(2,"Jarrett Abt","Freeport");
+    place(2,"Anthony DiAngelo","Freeport","Giblyn PA");
+    place(2,"Shaun McKee","North Babylon");
+    place(2,"Tayfun Uzun","Lynbrook");
+    place(2,"Rafy","Lynbrook");
+    place(2,"Ernie","Lynbrook");
+    place(2,"Mike Mullen","Manhasset");
+    place(2,"Pat Uhlman","Manhasset");
+    place(2,"Matt Abt","Oceanside");
+    place(2,"Kevin Bolin","Oceanside");
+    place(2,"Ed Aukstolis","Oceanside");
+
+    // Week of Aug 31
+    place(3,"Mike Jack","East Williston","VS-13 lockdown");
+    place(3,"Sakiris Diaz","East Williston");
+    place(3,"Miguel Martinez","Hempstead");
+    place(3,"Frank Gioielli","Hempstead");
+    place(3,"Piet","Hempstead");
+    place(3,"Gerald Abt","Freeport","Columbus \u2014 door ajar");
+    place(3,"Jarrett Abt","Freeport");
+    place(3,"Anthony DiAngelo","Freeport","Giblyn PA");
+    place(3,"Shaun McKee","North Babylon");
+
+    return ensureTechFields({
+      techs: Object.values(techs),
+      districts,
+      weeks,
+      placements,
+      archive: []
+    });
+  }
+
+  let board = null;
+  let dragTechId = null;
+  let dragFromCol = null;
+  let isEditingText = false;
+  const tableEl = document.getElementById('gridTable');
+  const syncNoteEl = document.getElementById('syncNote');
+
+  // ============ AUTOSAVE, MERGE, LIVE SYNC ============
+  // The server keeps a revision number. Every save says which revision it was
+  // based on; if someone else saved first, the server hands back their board and
+  // we merge the two (their changes + ours) before saving again, so nobody's
+  // edits are overwritten. Other people's changes arrive over a live connection.
+  let syncedRev = 0;          // server revision that syncedBoard corresponds to
+  let syncedBoard = null;     // copy of the board as the server last had it
+  let saving = false;
+  let saveQueued = false;
+  let forceNext = false;
+  let unsavedLocal = false;   // we have edits the server doesn't have yet
+  let pendingRemote = false;  // a remote change is waiting for us to finish typing/saving
+  let retryTimer = null;
+  let viewers = 1;
+  let statusKind = 'saved';
+  let statusTime = '';
+  let previewing = null;      // {liveBoard, meta} while looking at an old version
+
+  function clone(x){ return JSON.parse(JSON.stringify(x)); }
+  function timeNow(){ return new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+
+  function setStatus(kind, extra){
+    statusKind = kind;
+    if(kind === 'saved') statusTime = timeNow();
+    statusExtra = extra || '';
+    renderStatus();
+  }
+  let statusExtra = '';
+  function renderStatus(){
+    if(!syncNoteEl) return;
+    let text;
+    if(previewing) text = '';   // the banner above already says so
+    else if(statusKind === 'saving') text = 'Saving…';
+    else if(statusKind === 'offline') text = 'Offline — your changes are kept here and will save as soon as the connection is back';
+    else {
+      text = statusExtra ? statusExtra + ' — ' + statusTime : 'All changes saved — ' + statusTime;
+      text += viewers > 1 ? '  ·  ● ' + viewers + ' people viewing' : '  ·  ● Live';
+    }
+    syncNoteEl.textContent = text;
+    syncNoteEl.className = 'sync-note sync-' + (previewing ? 'preview' : statusKind);
+  }
+
+  function deepEqual(a, b){
+    if(a === b) return true;
+    if(a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+    if(Array.isArray(a) !== Array.isArray(b)) return false;
+    if(Array.isArray(a)){
+      if(a.length !== b.length) return false;
+      for(let i=0; i<a.length; i++) if(!deepEqual(a[i], b[i])) return false;
+      return true;
+    }
+    const ka = Object.keys(a), kb = Object.keys(b);
+    if(ka.length !== kb.length) return false;
+    for(const k of ka){
+      if(!Object.prototype.hasOwnProperty.call(b, k) || !deepEqual(a[k], b[k])) return false;
+    }
+    return true;
+  }
+  function isPlainObj(o){ return o !== null && typeof o === 'object' && !Array.isArray(o); }
+  function hasKey(o, k){ return Object.prototype.hasOwnProperty.call(o, k); }
+  function isIdArray(a){ return Array.isArray(a) && a.every(x=>isPlainObj(x) && typeof x.id === 'string'); }
+
+  // Three-way merge. base = what we last got from the server, mine = our board
+  // now, theirs = the server's board now. Anything only one side changed is
+  // kept; where both sides changed the same thing, ours wins.
+  function merge3(base, mine, theirs){
+    if(deepEqual(mine, theirs)) return mine;
+    if(deepEqual(mine, base)) return theirs;
+    if(deepEqual(theirs, base)) return mine;
+    if(isPlainObj(mine) && isPlainObj(theirs)){
+      const b = isPlainObj(base) ? base : {};
+      const out = {};
+      const keys = new Set([...Object.keys(mine), ...Object.keys(theirs), ...Object.keys(b)]);
+      keys.forEach(k=>{
+        const inM = hasKey(mine, k), inT = hasKey(theirs, k), inB = hasKey(b, k);
+        if(!inM && !inT) return;
+        if(!inM){
+          if(inB) return;               // we deleted it: stays deleted
+          out[k] = theirs[k]; return;   // they added it
+        }
+        if(!inT){
+          if(inB){ if(!deepEqual(mine[k], b[k])) out[k] = mine[k]; return; } // they deleted it; keep only if we edited it
+          out[k] = mine[k]; return;     // we added it
+        }
+        out[k] = merge3(inB ? b[k] : undefined, mine[k], theirs[k]);
+      });
+      return out;
+    }
+    if(isIdArray(mine) && isIdArray(theirs)) return mergeIdArrays(isIdArray(base) ? base : [], mine, theirs);
+    return mine; // plain arrays/values changed on both sides: ours wins
+  }
+
+  function mergeIdArrays(base, mine, theirs){
+    const mapOf = arr=>{ const m = new Map(); arr.forEach(x=>m.set(x.id, x)); return m; };
+    const B = mapOf(base), M = mapOf(mine), T = mapOf(theirs);
+    const baseIds = base.map(x=>x.id), mineIds = mine.map(x=>x.id), theirIds = theirs.map(x=>x.id);
+    const seqEq = (a, b)=> a.length === b.length && a.every((v,i)=>v === b[i]);
+    // Did we reorder the items that existed before? If so our order is used.
+    const iReordered = !seqEq(mineIds.filter(id=>B.has(id)), baseIds.filter(id=>M.has(id)));
+    const primary = iReordered ? mineIds : theirIds;
+    const secondary = iReordered ? theirIds : mineIds;
+    const order = [];
+    const used = new Set();
+    primary.concat(secondary).forEach(id=>{ if(!used.has(id)){ used.add(id); order.push(id); } });
+
+    const out = [];
+    order.forEach(id=>{
+      const b = B.get(id), m = M.get(id), t = T.get(id);
+      let v;
+      if(m && t) v = merge3(b, m, t);
+      else if(m && !t) v = !b ? m : (deepEqual(m, b) ? undefined : m);   // they deleted it (unless we edited it)
+      else if(!m && t) v = !b ? t : undefined;                           // we deleted it
+      if(v !== undefined) out.push(v);
+    });
+    return out;
+  }
+
+  // Brings a newer server board into this page. With unsaved local edits it
+  // merges; otherwise it simply adopts the server's version.
+  function applyRemote(theirsBoard, theirsRev, mergeLocal){
+    ensureTechFields(theirsBoard);
+    let result = theirsBoard;
+    const mine = previewing ? previewing.liveBoard : board;
+    if(mergeLocal && syncedBoard){
+      result = ensureTechFields(merge3(syncedBoard, mine, theirsBoard));
+    }
+    if(previewing) previewing.liveBoard = result; else board = result;
+    syncedBoard = clone(theirsBoard);
+    syncedRev = theirsRev;
+  }
+
+  function save(opts){
+    if(previewing) return Promise.resolve();
+    unsavedLocal = true;
+    if(opts && opts.force) forceNext = true;
+    if(saving){ saveQueued = true; return Promise.resolve(); }
+    return runSave();
+  }
+
+  async function runSave(){
+    saving = true;
+    setStatus('saving');
+    clearTimeout(retryTimer);
+    let ok = false;
+    try{
+      let attempts = 0;
+      do{
+        saveQueued = false;
+        const force = forceNext; forceNext = false;
+        const liveBoard = previewing ? previewing.liveBoard : board;
+        const sent = JSON.stringify(liveBoard);
+        const res = await fetch('/api/board', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ baseRev: syncedRev, board: liveBoard, force: force })
+        });
+        if(res.ok){
+          const data = await res.json();
+          syncedRev = data.rev;
+          syncedBoard = JSON.parse(sent);
+          if(!saveQueued) unsavedLocal = false;
+        } else if(res.status === 409){
+          const data = await res.json();
+          // someone saved first: merge their changes with ours, then save again
+          applyRemote(JSON.parse(data.value), data.rev, true);
+          saveQueued = true;
+          if(++attempts > 8) throw new Error('Too many conflicting saves');
+          if(!previewing && !isEditingText && !dragTechId) render();
+        } else {
+          throw new Error('HTTP ' + res.status);
+        }
+      } while(saveQueued);
+      ok = true;
+    }catch(e){
+      console.error('Save error:', e);
+    }
+    saving = false;
+    if(ok){
+      setStatus('saved');
+      if(pendingRemote) refreshFromShared(true);
+    } else {
+      setStatus('offline');
+      retryTimer = setTimeout(()=>{ if(unsavedLocal && !saving) save(); }, 5000);
+    }
+  }
+
+  async function load(){
+    try{
+      const res = await fetch('/api/board');
+      if(res.ok){
+        const data = await res.json();
+        syncedRev = data.rev || 0;
+        if(data && data.value){
+          board = ensureTechFields(JSON.parse(data.value));
+          syncedBoard = clone(board);
+          return;
+        }
+      }
+    }catch(e){ /* server not reachable yet; fall through */ }
+    board = ensureTechFields(seedData());
+    syncedBoard = null;
+    await save();
+  }
+
+  async function refreshFromShared(silent){
+    if(previewing) return;
+    if(saving || isEditingText || dragTechId){ pendingRemote = true; return; }
+    try{
+      const res = await fetch('/api/board');
+      if(!res.ok) return;
+      const data = await res.json();
+      if(!data.value) return;
+      if(data.rev === syncedRev && !unsavedLocal) return;
+      // we may have started typing or saving while the request was in flight
+      if(saving || isEditingText || dragTechId){ pendingRemote = true; return; }
+      pendingRemote = false;
+      const hadLocal = unsavedLocal;
+      applyRemote(JSON.parse(data.value), data.rev, hadLocal);
+      render();
+      if(document.getElementById('archiveOverlay').classList.contains('open')) renderArchiveList();
+      if(hadLocal) save();
+      else setStatus('saved', silent ? 'Updated by someone else' : 'Up to date');
+    }catch(e){ /* offline; the next poll or live event will retry */ }
+  }
+
+  function startLiveUpdates(){
+    // A pause in typing or dragging lets waiting remote changes in.
+    setInterval(()=>{
+      if(pendingRemote && !isEditingText && !dragTechId && !saving && !previewing){ refreshFromShared(true); }
+    }, 1000);
+    // Fallback in case the live connection is blocked by a network.
+    setInterval(()=>refreshFromShared(true), 15000);
+    if(!window.EventSource) return;
+    const es = new EventSource('/api/events');
+    const onRev = rev=>{ if(rev > syncedRev) refreshFromShared(true); };
+    es.addEventListener('hello', e=>{
+      const d = JSON.parse(e.data); viewers = d.count || 1; renderStatus(); onRev(d.rev);
+    });
+    es.addEventListener('rev', e=>{ onRev(JSON.parse(e.data).rev); });
+    es.addEventListener('viewers', e=>{ viewers = JSON.parse(e.data).count || 1; renderStatus(); });
+  }
+
+  function ensureTechFields(b){
+    b.techs.forEach(t=>{
+      if(t.role===undefined) t.role='';
+      if(t.phone===undefined) t.phone='';
+      if(t.email===undefined) t.email='';
+      if(t.detail===undefined) t.detail='';
+    });
+    if(!Array.isArray(b.archive)) b.archive = [];
+    if(!b.placements || typeof b.placements !== 'object') b.placements = {};
+    ['cellOrder','dayPlacements','dayOrder','cellNotes'].forEach(k=>{
+      if(!b[k] || typeof b[k] !== 'object') b[k] = {};
+    });
+    b.weeks.forEach(w=>{
+      if(w.date===undefined) w.date = '';
+    });
+    b.techs.forEach(t=>{ if(t.keyId===undefined) t.keyId = ''; if(t.seniority===undefined) t.seniority = ''; });
+    if(!Array.isArray(b.key)) b.key = [];
+    if(!b.extras || typeof b.extras !== 'object') b.extras = {};
+    if(!b.weekJobs || typeof b.weekJobs !== 'object'){
+      // first time on the per-week job list: every existing week keeps the jobs it already has
+      b.weekJobs = {};
+      b.weeks.forEach(w=>{
+        b.weekJobs[w.id] = {};
+        b.districts.forEach(d=>{ if(d.id !== 'bench') b.weekJobs[w.id][d.id] = true; });
+      });
+    } else {
+      b.weeks.forEach(w=>{ if(!b.weekJobs[w.id]) b.weekJobs[w.id] = {}; });
+    }
+    if(b.districtSort!=='az' && b.districtSort!=='za') b.districtSort = 'manual';
+    if(b.techSort!=='az' && b.techSort!=='za' && b.techSort!=='sen') b.techSort = 'manual';
+    return b;
+  }
+
+  const DAY_ABBR = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function parseISODate(dateStr){
+    // Parse as local calendar date, not UTC, so it never shifts a day off.
+    const [y,m,d] = dateStr.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+
+  function formatWeekLabel(dateStr){
+    if(!dateStr) return '';
+    const dt = parseISODate(dateStr);
+    return 'Week of ' + MONTH_ABBR[dt.getMonth()] + ' ' + dt.getDate();
+  }
+
+  function formatWeekDayStrip(dateStr){
+    // Assumes dateStr is the Monday of that week; renders Mon\u2013Fri.
+    if(!dateStr) return [];
+    const start = parseISODate(dateStr);
+    const days = [];
+    for(let i=0; i<5; i++){
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate()+i);
+      days.push(DAY_ABBR[d.getDay()] + ' ' + (d.getMonth()+1) + '/' + d.getDate());
+    }
+    return days;
+  }
+
+  // ============ VERSION HISTORY ============
+  function fmtWhen(ts){
+    const d = new Date(ts);
+    return d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'}) + ' · ' +
+      d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  }
+  function relTime(ts){
+    const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    if(s < 60) return 'just now';
+    const m = Math.round(s / 60);
+    if(m < 60) return m + ' min ago';
+    const h = Math.round(m / 60);
+    if(h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+    const d = Math.round(h / 24);
+    return d + (d === 1 ? ' day ago' : ' days ago');
+  }
+
+  function openHistory(){
+    document.getElementById('historyOverlay').classList.add('open');
+    isEditingText = false;
+    renderHistoryList();
+  }
+  function closeHistory(){
+    document.getElementById('historyOverlay').classList.remove('open');
+  }
+
+  async function renderHistoryList(){
+    const listEl = document.getElementById('historyList');
+    listEl.innerHTML = '';
+    const loading = document.createElement('div');
+    loading.className = 'archive-empty';
+    loading.textContent = 'Loading versions…';
+    listEl.appendChild(loading);
+    let versions;
+    try{
+      const res = await fetch('/api/history');
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      versions = (await res.json()).versions;
+    }catch(e){
+      loading.textContent = 'Could not load version history. Check your connection and try again.';
+      return;
+    }
+    listEl.innerHTML = '';
+
+    const now = document.createElement('div');
+    now.className = 'history-entry current';
+    now.innerHTML = '<div class="history-title">Current version</div><div class="history-sub">What everyone is looking at right now. Every version below is an earlier snapshot.</div>';
+    listEl.appendChild(now);
+
+    if(versions.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'archive-empty';
+      empty.textContent = 'No earlier versions yet. They appear automatically as the board is edited.';
+      listEl.appendChild(empty);
+      return;
+    }
+    versions.forEach(v=>{
+      const card = document.createElement('div');
+      card.className = 'history-entry' + (v.named ? ' named' : '');
+      const top = document.createElement('div');
+      top.className = 'history-top';
+      const title = document.createElement('div');
+      title.className = 'history-title';
+      title.textContent = v.label || fmtWhen(v.ts);
+      top.appendChild(title);
+      const rel = document.createElement('div');
+      rel.className = 'history-rel';
+      rel.textContent = relTime(v.ts);
+      top.appendChild(rel);
+      card.appendChild(top);
+      if(v.label){
+        const when = document.createElement('div');
+        when.className = 'history-sub';
+        when.textContent = fmtWhen(v.ts);
+        card.appendChild(when);
+      }
+      const sum = document.createElement('div');
+      sum.className = 'history-sub';
+      sum.textContent = v.summary || '';
+      card.appendChild(sum);
+
+      const actions = document.createElement('div');
+      actions.className = 'archive-actions';
+      const pv = document.createElement('button');
+      pv.className = 'btn';
+      pv.textContent = 'Preview';
+      pv.addEventListener('click', ()=>enterPreview(v.id));
+      actions.appendChild(pv);
+      const rs = document.createElement('button');
+      rs.className = 'btn primary';
+      rs.textContent = 'Restore';
+      rs.addEventListener('click', ()=>restoreVersion(v.id, v.label ? '"' + v.label + '"' : fmtWhen(v.ts)));
+      actions.appendChild(rs);
+      card.appendChild(actions);
+      listEl.appendChild(card);
+    });
+  }
+
+  async function saveNamedVersion(){
+    const input = document.getElementById('historyName');
+    const label = input.value.trim();
+    if(!label){ input.focus(); return; }
+    try{
+      await save();   // make sure the server has the very latest edits first
+      const res = await fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: label })
+      });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      input.value = '';
+      renderHistoryList();
+    }catch(e){
+      alert('Could not save the version — please try again.');
+    }
+  }
+
+  async function enterPreview(id){
+    try{
+      const res = await fetch('/api/history/' + id);
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const liveBoard = previewing ? previewing.liveBoard : board;
+      previewing = { liveBoard: liveBoard, meta: { id: data.id, ts: data.ts, label: data.label } };
+      board = ensureTechFields(JSON.parse(data.value));
+      document.body.classList.add('previewing');
+      document.getElementById('previewWhen').textContent = data.label ? '"' + data.label + '" (' + fmtWhen(data.ts) + ')' : fmtWhen(data.ts);
+      closeHistory();
+      render();
+      renderStatus();
+      window.scrollTo(0, 0);
+    }catch(e){
+      alert('Could not open that version — please try again.');
+    }
+  }
+
+  function leavePreview(skipRefresh){
+    if(!previewing) return;
+    board = previewing.liveBoard;
+    previewing = null;
+    document.body.classList.remove('previewing');
+    render();
+    renderStatus();
+    if(!skipRefresh) refreshFromShared(true);
+  }
+
+  async function restoreVersion(id, whenText){
+    if(!confirm('Restore the whole board to ' + whenText + '?\n\nThe board as it is right now is saved to history first, so you can undo this.')) return;
+    try{
+      const res = await fetch('/api/history/' + id + '/restore', { method: 'POST' });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      if(previewing) leavePreview(true);
+      closeHistory();
+      unsavedLocal = false;
+      pendingRemote = false;
+      for(let i = 0; i < 20 && (saving || isEditingText); i++) await new Promise(r=>setTimeout(r, 100));
+      await refreshFromShared(true);
+      setStatus('saved', 'Restored ' + whenText);
+    }catch(e){
+      alert('Restore failed — please try again.');
+    }
+  }
+
+  function getPlacement(weekId, techId){
+    const w = board.placements[weekId];
+    if(w && w[techId]) return w[techId];
+    return { districtId:'bench', note:'' };
+  }
+  function mkPlacement(districtId, note, f){
+    const o = { districtId, note: note||'' };
+    if(districtId !== 'bench' && f){
+      if(f.start) o.start = f.start;
+      if(f.wo) o.wo = f.wo;
+      if(f.done) o.done = true;
+    }
+    return o;
+  }
+  function samePlacement(a, b){
+    return a.districtId === b.districtId && (a.note||'') === (b.note||'') && (a.start||'') === (b.start||'')
+        && (a.wo||'') === (b.wo||'') && !!a.done === !!b.done;
+  }
+  function setPlacement(weekId, techId, districtId, note, f){
+    if(!board.placements[weekId]) board.placements[weekId] = {};
+    board.placements[weekId][techId] = mkPlacement(districtId, note, f);
+    activateJob(weekId, districtId);
+  }
+
+  // ============ PER-WEEK JOB LIST ============
+  // board.districts is the library of every job/school ever used; board.weekJobs says which ones are on a given week.
+  function activateJob(weekId, districtId){
+    if(!districtId || districtId === 'bench') return;
+    if(!board.weekJobs[weekId]) board.weekJobs[weekId] = {};
+    board.weekJobs[weekId][districtId] = true;
+  }
+  function isJobActiveIn(weekId, districtId){
+    return !!(board.weekJobs[weekId] && board.weekJobs[weekId][districtId]);
+  }
+  // Anything that is assigned to a job makes that job part of its week (covers merges, restores, copies).
+  function syncWeekJobs(){
+    const weekIds = new Set(board.weeks.map(w=>w.id));
+    Object.keys(board.placements).forEach(wid=>{
+      if(!weekIds.has(wid)) return;
+      Object.keys(board.placements[wid]).forEach(tid=>activateJob(wid, board.placements[wid][tid].districtId));
+    });
+    ['dayPlacements','extras'].forEach(name=>{
+      Object.keys(board[name] || {}).forEach(k=>{
+        const wid = k.split(':')[0];
+        if(!weekIds.has(wid)) return;
+        Object.keys(board[name][k]).forEach(id=>activateJob(wid, board[name][k][id].districtId));
+      });
+    });
+  }
+
+  // ============ ADDITIONAL JOBS (Day view: several jobs for one tech on one day) ============
+  function getExtras(col){ return (col.dayIdx != null && board.extras[col.key]) || {}; }
+  function extraList(col){
+    const m = getExtras(col);
+    return Object.keys(m).map(id=>Object.assign({ id }, m[id])).filter(x=>board.techs.some(t=>t.id === x.techId))
+      .sort((a,b)=> (a.start||'99:99') < (b.start||'99:99') ? -1 : (a.start||'99:99') > (b.start||'99:99') ? 1 : 0);
+  }
+  function addExtra(col, techId, districtId){
+    if(col.dayIdx == null) return null;
+    if(!board.extras[col.key]) board.extras[col.key] = {};
+    const id = uid();
+    board.extras[col.key][id] = { techId, districtId: districtId || '', note:'', start:'', wo:'', done:false };
+    activateJob(col.weekId, districtId);
+    return id;
+  }
+  function removeExtra(col, id){
+    if(!board.extras[col.key]) return;
+    delete board.extras[col.key][id];
+    if(Object.keys(board.extras[col.key]).length === 0) delete board.extras[col.key];
+  }
+  function isTechAssigned(col, techId){
+    if(effPlacement(col, techId).districtId !== 'bench') return true;
+    return extraList(col).some(x=>x.techId === techId && x.districtId && x.districtId !== 'bench');
+  }
+  // One job "reference": {} = the tech's main placement, {x:id} = an additional job.
+  function jobOf(col, techId, ref){
+    if(ref && ref.x) return getExtras(col)[ref.x] || null;
+    return effPlacement(col, techId);
+  }
+  function patchJob(col, techId, ref, patch){
+    if(ref && ref.x){
+      const x = getExtras(col)[ref.x];
+      if(!x) return;
+      if(patch.districtId !== undefined && patch.districtId !== x.districtId){ x.done = false; activateJob(col.weekId, patch.districtId); }
+      Object.assign(x, patch);
+      return;
+    }
+    const cur = effPlacement(col, techId);
+    const f = {};
+    ['start','wo','done'].forEach(k=>{ if(patch[k] !== undefined) f[k] = patch[k]; });
+    setColPlacement(col, techId,
+      patch.districtId !== undefined ? patch.districtId : cur.districtId,
+      patch.note !== undefined ? patch.note : cur.note,
+      Object.keys(f).length ? f : undefined);
+  }
+  // Main + additional jobs for a tech in a column, in start-time order (main job first on ties).
+  function techJobs(col, techId){
+    const list = [{ ref:{}, job: effPlacement(col, techId) }];
+    extraList(col).filter(x=>x.techId === techId).forEach(x=>list.push({ ref:{ x:x.id }, job:x }));
+    return list.map((j,i)=>({ j, i })).sort((a,b)=>{
+      const ka = a.j.job.start || '99:99', kb = b.j.job.start || '99:99';
+      return ka < kb ? -1 : ka > kb ? 1 : a.i - b.i;
+    }).map(o=>o.j);
+  }
+  // When a tech's main job goes away but they have additional jobs that day, the earliest one is promoted.
+  function sendPrimaryToBench(col, techId){
+    if(col.dayIdx != null){
+      const xs = extraList(col).filter(x=>x.techId === techId && x.districtId && x.districtId !== 'bench');
+      if(xs.length){
+        const x = xs[0];
+        setColPlacement(col, techId, x.districtId, x.note, { start:x.start||'', wo:x.wo||'', done:!!x.done });
+        removeExtra(col, x.id);
+        return;
+      }
+    }
+    setColPlacement(col, techId, 'bench', '');
+  }
+  function assignTechToJob(col, techId, districtId){
+    const cur = effPlacement(col, techId);
+    if(cur.districtId !== 'bench' && col.dayIdx != null){
+      if(cur.districtId === districtId) return null;
+      return addExtra(col, techId, districtId);
+    }
+    placeTech(col, techId, districtId);
+    return true;
+  }
+  function fmtTime(hhmm){
+    if(!hhmm) return '';
+    const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+    if(!m) return hhmm;
+    let h = +m[1]; const ap = h >= 12 ? 'p' : 'a'; h = h % 12 || 12;
+    return h + (m[2] === '00' ? '' : ':' + m[2]) + ap;
+  }
+  function jobMeta(p){
+    const bits = [];
+    if(p.start) bits.push(fmtTime(p.start));
+    if(p.wo) bits.push('WO ' + p.wo);
+    return bits.join(' \u00b7 ');
+  }
+
+  function emailValid(email){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email||'').trim());
+  }
+
+  function deleteTechFromRoster(techId){
+    const tech = board.techs.find(t=>t.id===techId);
+    const label = tech ? (tech.name || 'this tech') : 'this tech';
+    if(!confirm('Remove '+ label +' from the roster entirely? This removes them from every week.')) return;
+    board.techs = board.techs.filter(t=>t.id!==techId);
+    Object.keys(board.placements).forEach(wid=>{ delete board.placements[wid][techId]; });
+    Object.keys(board.dayPlacements).forEach(k=>{
+      delete board.dayPlacements[k][techId];
+      if(Object.keys(board.dayPlacements[k]).length === 0) delete board.dayPlacements[k];
+    });
+    Object.keys(board.extras).forEach(k=>{
+      Object.keys(board.extras[k]).forEach(id=>{ if(board.extras[k][id].techId === techId) delete board.extras[k][id]; });
+      if(Object.keys(board.extras[k]).length === 0) delete board.extras[k];
+    });
+    save(); render();
+  }
+
+  // ============ VIEW MODE (week / day) ============
+  const DAYS_PER_WEEK = 5;
+  let layoutMode = 'district';
+  try{ if(localStorage.getItem('crew-board-layout') === 'tech') layoutMode = 'tech'; }catch(e){}
+  let keyEditing = false;
+  let viewMode = 'week';
+  try{ if(localStorage.getItem('crew-board-view') === 'day') viewMode = 'day'; }catch(e){}
+
+  // Which week(s) are on screen: one week at a time (default) or all of them.
+  let weekFocus = '';
+  try{ weekFocus = localStorage.getItem('crew-board-week') || ''; }catch(e){}
+  function setWeekFocus(v){
+    weekFocus = v;
+    try{ localStorage.setItem('crew-board-week', v); }catch(e){}
+  }
+  function defaultWeek(){
+    const ws = board.weeks;
+    if(ws.length === 0) return null;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const dated = ws.filter(w=>w.date).map(w=>({ w, d: parseISODate(w.date) })).filter(x=>x.d);
+    const cur = dated.find(x=>today >= x.d && today < new Date(x.d.getTime() + 7*86400000));
+    if(cur) return cur.w;
+    const next = dated.filter(x=>x.d > today).sort((a,b)=>a.d - b.d)[0];
+    if(next) return next.w;
+    const last = dated.sort((a,b)=>b.d - a.d)[0];
+    return last ? last.w : ws[ws.length-1];
+  }
+  function focusedWeek(){
+    if(weekFocus === 'all') return null;
+    let w = board.weeks.find(x=>x.id === weekFocus);
+    if(!w){ w = defaultWeek(); if(w) setWeekFocus(w.id); else return null; }
+    return w;
+  }
+  function shownWeeks(){ const f = focusedWeek(); return f ? [f] : board.weeks; }
+
+  // A "column" is what a cell lives in: a whole week in Week view, or one weekday in Day view.
+  function getColumns(){
+    const cols = [];
+    shownWeeks().forEach(week=>{
+      if(viewMode === 'day'){
+        for(let i=0; i<DAYS_PER_WEEK; i++) cols.push({ weekId:week.id, dayIdx:i, key:week.id+':'+i, week });
+      } else {
+        cols.push({ weekId:week.id, dayIdx:null, key:week.id, week });
+      }
+    });
+    return cols;
+  }
+
+  function colLabel(col){
+    const week = col.week;
+    if(col.dayIdx == null) return week.date ? formatWeekLabel(week.date) : 'Undated week';
+    if(week.date) return formatWeekDayStrip(week.date)[col.dayIdx];
+    return ['Mon','Tue','Wed','Thu','Fri'][col.dayIdx] + ' (wk ' + (board.weeks.indexOf(week)+1) + ')';
+  }
+
+  // Day-level placements are sparse overrides on top of the week plan.
+  function dayPlacementOf(weekId, dayIdx, techId){
+    const o = board.dayPlacements && board.dayPlacements[weekId+':'+dayIdx];
+    return (o && o[techId]) || null;
+  }
+  function effPlacement(col, techId){
+    if(col.dayIdx != null){
+      const o = dayPlacementOf(col.weekId, col.dayIdx, techId);
+      if(o) return o;
+    }
+    return getPlacement(col.weekId, techId);
+  }
+  // patch (optional) = {start, wo, done}. Without it the time / work order / done flag carry over;
+  // moving to a different job clears "done" because the new job still has to be transferred.
+  function setColPlacement(col, techId, districtId, note, patch){
+    note = note || '';
+    const cur = effPlacement(col, techId);
+    const f = { start: cur.start||'', wo: cur.wo||'', done: !!cur.done };
+    if(districtId !== cur.districtId) f.done = false;
+    if(patch) Object.assign(f, patch);
+    const rec = mkPlacement(districtId, note, f);
+    activateJob(col.weekId, districtId);
+    if(col.dayIdx == null){
+      if(!board.placements[col.weekId]) board.placements[col.weekId] = {};
+      board.placements[col.weekId][techId] = rec;
+      return;
+    }
+    const base = getPlacement(col.weekId, techId);
+    if(samePlacement(base, rec)){
+      // identical to the week plan, so no override is needed
+      if(board.dayPlacements[col.key]){
+        delete board.dayPlacements[col.key][techId];
+        if(Object.keys(board.dayPlacements[col.key]).length === 0) delete board.dayPlacements[col.key];
+      }
+    } else {
+      if(!board.dayPlacements[col.key]) board.dayPlacements[col.key] = {};
+      board.dayPlacements[col.key][techId] = rec;
+    }
+  }
+  function clearDayOverride(col, techId){
+    if(!board.dayPlacements[col.key]) return;
+    delete board.dayPlacements[col.key][techId];
+    if(Object.keys(board.dayPlacements[col.key]).length === 0) delete board.dayPlacements[col.key];
+  }
+  // Days in this week where the tech is somewhere other than their week-level district.
+  function techDayDiffs(weekId, techId){
+    const base = getPlacement(weekId, techId);
+    const out = [];
+    for(let i=0; i<DAYS_PER_WEEK; i++){
+      const o = dayPlacementOf(weekId, i, techId);
+      if(o && o.districtId !== base.districtId) out.push({ dayIdx:i, districtId:o.districtId });
+      extraList({ weekId, dayIdx:i, key:weekId+':'+i }).filter(x=>x.techId === techId && x.districtId).forEach(x=>{
+        out.push({ dayIdx:i, districtId:x.districtId, extra:true });
+      });
+    }
+    return out;
+  }
+
+  // Cell-level note (one per district per week/day), separate from each tech's own note.
+  function getCellNote(col, districtId){
+    const n = board.cellNotes && board.cellNotes[col.key];
+    return (n && n[districtId]) || '';
+  }
+  function setCellNote(col, districtId, text){
+    text = (text || '').trim();
+    if(!board.cellNotes[col.key]) board.cellNotes[col.key] = {};
+    if(text){
+      board.cellNotes[col.key][districtId] = text;
+    } else {
+      delete board.cellNotes[col.key][districtId];
+      if(Object.keys(board.cellNotes[col.key]).length === 0) delete board.cellNotes[col.key];
+    }
+  }
+
+  // Removes every trace of a week (and its day columns) from the live board.
+  function purgeWeekKeys(weekId){
+    const prefix = weekId + ':';
+    delete board.placements[weekId];
+    delete board.cellOrder[weekId];
+    delete board.cellNotes[weekId];
+    delete board.weekJobs[weekId];
+    ['dayPlacements','dayOrder','cellNotes','extras'].forEach(name=>{
+      Object.keys(board[name] || {}).forEach(k=>{ if(k.indexOf(prefix) === 0) delete board[name][k]; });
+    });
+  }
+
+  // ============ CELL ORDER ============
+  // Keeps an order map ({districtId: [techId,...]}) in sync with placements.
+  // Anyone whose placement changed drops out of their old cell's order and is
+  // appended to the end of their new cell's order; anyone already correctly
+  // placed keeps their position. `rank` (optional) seeds the order of newcomers.
+  function reconcileOrderObj(orderObj, getP, techs, rank){
+    const seen = new Set();
+    Object.keys(orderObj).forEach(distId=>{
+      orderObj[distId] = orderObj[distId].filter(tid=>{
+        const keep = !seen.has(tid) && techs.some(t=>t.id===tid) && getP(tid).districtId === distId;
+        if(keep) seen.add(tid);
+        return keep;
+      });
+    });
+    const unseen = techs.filter(t=>!seen.has(t.id));
+    if(rank){
+      unseen.sort((a,b)=> (rank[a.id]!==undefined ? rank[a.id] : 1e6) - (rank[b.id]!==undefined ? rank[b.id] : 1e6));
+    }
+    unseen.forEach(tech=>{
+      const d = getP(tech.id).districtId;
+      if(!orderObj[d]) orderObj[d] = [];
+      orderObj[d].push(tech.id);
+    });
+  }
+
+  function reconcileCellOrder(b){
+    if(!b.cellOrder) b.cellOrder = {};
+    b.weeks.forEach(week=>{
+      if(!b.cellOrder[week.id]) b.cellOrder[week.id] = {};
+      reconcileOrderObj(
+        b.cellOrder[week.id],
+        tid => (b.placements[week.id] && b.placements[week.id][tid]) || { districtId:'bench' },
+        b.techs
+      );
+    });
+    return b;
+  }
+
+  // Day columns start out ordered like their week, then keep their own order.
+  function reconcileDayOrder(b){
+    if(!b.dayOrder) b.dayOrder = {};
+    b.weeks.forEach(week=>{
+      const weekOrder = (b.cellOrder && b.cellOrder[week.id]) || {};
+      const rank = {};
+      Object.keys(weekOrder).forEach(d=>{ weekOrder[d].forEach((tid,i)=>{ rank[tid] = i; }); });
+      for(let i=0; i<DAYS_PER_WEEK; i++){
+        const key = week.id + ':' + i;
+        if(!b.dayOrder[key]) b.dayOrder[key] = {};
+        reconcileOrderObj(b.dayOrder[key], tid=>{
+          const o = b.dayPlacements && b.dayPlacements[key] && b.dayPlacements[key][tid];
+          if(o) return o;
+          return (b.placements[week.id] && b.placements[week.id][tid]) || { districtId:'bench' };
+        }, b.techs, rank);
+      }
+    });
+    return b;
+  }
+
+  function reconcileAll(){
+    syncWeekJobs();
+    reconcileCellOrder(board);
+    if(viewMode === 'day') reconcileDayOrder(board);
+  }
+
+  function orderObjFor(col){
+    if(col.dayIdx == null){
+      if(!board.cellOrder[col.weekId]) board.cellOrder[col.weekId] = {};
+      return board.cellOrder[col.weekId];
+    }
+    if(!board.dayOrder[col.key]) board.dayOrder[col.key] = {};
+    return board.dayOrder[col.key];
+  }
+
+  function moveTechInCell(col, districtId, techId, direction){
+    const arr = orderObjFor(col)[districtId] || [];
+    const idx = arr.indexOf(techId);
+    const newIdx = idx + direction;
+    if(idx===-1 || newIdx<0 || newIdx>=arr.length) return;
+    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+    save(); render();
+  }
+
+  // Puts a tech into a district for a column. If beforeTechId is given the tech
+  // is inserted just ahead of that tech (drag-to-reorder); otherwise appended.
+  function placeTech(col, techId, districtId, beforeTechId){
+    const existing = effPlacement(col, techId);
+    setColPlacement(col, techId, districtId, existing.note);
+    const orderObj = orderObjFor(col);
+    Object.keys(orderObj).forEach(d=>{ orderObj[d] = orderObj[d].filter(id=>id!==techId); });
+    if(!orderObj[districtId]) orderObj[districtId] = [];
+    const idx = beforeTechId ? orderObj[districtId].indexOf(beforeTechId) : -1;
+    if(idx === -1) orderObj[districtId].push(techId); else orderObj[districtId].splice(idx, 0, techId);
+  }
+
+
+  // ============ SORTING, COUNTS, COLORS ============
+  function nameCmp(a, b){ return String(a||'').localeCompare(String(b||''), undefined, { numeric:true, sensitivity:'base' }); }
+  function orderedDistricts(){
+    const bench = board.districts.find(d=>d.id==='bench');
+    let others = board.districts.filter(d=>d.id!=='bench');
+    const mode = board.districtSort || 'manual';
+    if(mode !== 'manual'){
+      others = others.slice().sort((a,b)=>nameCmp(a.label,b.label));
+      if(mode === 'za') others.reverse();
+    }
+    return { bench, others };
+  }
+  function senValue(t){ const n = parseInt(t.seniority, 10); return isNaN(n) ? 1e9 : n; }
+  function senLabel(t){ const n = parseInt(t.seniority, 10); return isNaN(n) ? '' : '#' + n; }
+  // Applies the chosen tech order (seniority / A-Z / Z-A) to any list of techs; manual leaves it alone.
+  function sortTechList(list){
+    const mode = board.techSort || 'manual';
+    if(mode === 'manual') return list;
+    const rank = new Map(orderedTechs().map((t,i)=>[t.id, i]));
+    return list.slice().sort((a,b)=>rank.get(a.id) - rank.get(b.id));
+  }
+  function orderedTechs(){
+    const mode = board.techSort || 'manual';
+    if(mode === 'manual') return board.techs.slice();
+    if(mode === 'sen'){
+      return board.techs.slice().sort((a,b)=> senValue(a) - senValue(b) || nameCmp(a.name||'\uffff', b.name||'\uffff'));
+    }
+    const out = board.techs.slice().sort((a,b)=>nameCmp(a.name||'￿', b.name||'￿'));
+    if(mode === 'za') out.reverse();
+    return out;
+  }
+  function benchCount(col){
+    return board.techs.filter(t=>!isTechAssigned(col, t.id)).length;
+  }
+  function makeBenchCount(col){
+    const n = benchCount(col);
+    const el = document.createElement('div');
+    el.className = 'bench-count' + (n === 0 ? ' zero' : '');
+    el.dataset.benchCount = col.key;
+    el.textContent = n + ' unassigned';
+    el.title = n + ' tech' + (n===1?'':'s') + ' not assigned to a district';
+    return el;
+  }
+  function techColor(t){
+    if(t.keyId){
+      const k = (board.key||[]).find(x=>x.id===t.keyId);
+      if(k) return k.color;
+    }
+    return t.color;
+  }
+
+  function moveDistrict(districtId, direction){
+    const idx = board.districts.findIndex(d=>d.id===districtId);
+    const newIdx = idx + direction;
+    if(idx<=0 || newIdx<=0 || newIdx>=board.districts.length) return; // index 0 is bench, stays pinned
+    [board.districts[idx], board.districts[newIdx]] = [board.districts[newIdx], board.districts[idx]];
+    save(); render();
+  }
+
+  function flashCell(colKey, districtId){
+    const target = tableEl.querySelector('td.cell[data-col-key="'+colKey+'"][data-district-id="'+districtId+'"]');
+    if(target){
+      target.classList.add('just-placed');
+      setTimeout(()=>{ target.classList.remove('just-placed'); }, 700);
+    }
+  }
+
+  // Copies every tech in (col, district) into the same district for the adjacent
+  // column (previous/next week in Week view, previous/next day in Day view).
+  // Additive: nobody already in the target is cleared.
+  function copyCellToAdjacentCol(col, districtId, direction){
+    const cols = getColumns();
+    const idx = cols.findIndex(c=>c.key===col.key);
+    const target = cols[idx + direction];
+    if(idx === -1 || !target) return;
+
+    reconcileAll();
+    const sourceArr = (orderObjFor(col)[districtId] || []).slice();
+    if(sourceArr.length === 0 && !extraList(col).some(x=>x.districtId === districtId)) return;
+
+    sourceArr.forEach(techId=>{
+      const p = effPlacement(col, techId);
+      setColPlacement(target, techId, districtId, p.note || '', { start:p.start||'', wo:p.wo||'', done:false });
+    });
+    extraList(col).filter(x=>x.districtId === districtId).forEach(x=>{
+      if(target.dayIdx == null) return;
+      const id = assignTechToJob(target, x.techId, districtId);
+      if(typeof id === 'string'){
+        Object.assign(board.extras[target.key][id], { note:x.note||'', start:x.start||'', wo:x.wo||'' });
+      } else {
+        const cur = effPlacement(target, x.techId);
+        if(cur.districtId === districtId){ setColPlacement(target, x.techId, districtId, x.note||'', { start:x.start||'', wo:x.wo||'', done:false }); }
+      }
+    });
+    const srcNote = getCellNote(col, districtId);
+    if(srcNote && !getCellNote(target, districtId)) setCellNote(target, districtId, srcNote);
+
+    save(); render();
+    flashCell(target.key, districtId);
+  }
+
+  let benchCollapsed = false;
+
+  // ---- multi-select tech picker (click, click, click, then Add) ----
+  let pickerEl = null, pickerOutside = null, pickerEsc = null;
+  function closeTechPicker(){
+    if(!pickerEl) return;
+    pickerEl.remove(); pickerEl = null;
+    document.removeEventListener('mousedown', pickerOutside, true);
+    document.removeEventListener('keydown', pickerEsc, true);
+    isEditingText = false;
+  }
+  function buildAddTechButton(district, cols){
+    const btn = document.createElement('button');
+    btn.className = 'district-add-btn';
+    btn.textContent = '+ Add techs…';
+    btn.title = 'Pick one or several techs for ' + district.label;
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); openTechPicker(btn, district, cols); });
+    return btn;
+  }
+  function openTechPicker(anchor, district, cols){
+    closeTechPicker();
+    const wrap = document.createElement('div');
+    wrap.className = 'tech-picker';
+    wrap.innerHTML = '<h3></h3><div class="pick-hint">Click as many techs as you need, then Add.</div>';
+    wrap.querySelector('h3').textContent = 'Add to ' + district.label;
+    const picked = new Map();
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn primary'; addBtn.id = 'pickerAddBtn'; addBtn.disabled = true; addBtn.textContent = 'Add';
+    const refresh = ()=>{ addBtn.disabled = picked.size === 0; addBtn.textContent = picked.size ? 'Add ' + picked.size : 'Add'; };
+    const toggle = (col, tech, cb)=>{
+      const k = col.key + '|' + tech.id;
+      if(cb.checked) picked.set(k, { col, techId: tech.id }); else picked.delete(k);
+      refresh();
+    };
+    let any = false;
+    cols.forEach(col=>{
+      const free = sortTechList(board.techs.filter(t=>!isTechAssigned(col, t.id)));
+      const busy = col.dayIdx == null ? [] : sortTechList(board.techs.filter(t=>isTechAssigned(col, t.id)
+        && !techJobs(col, t.id).some(j=>j.job.districtId === district.id)));
+      if(free.length + busy.length === 0) return;
+      any = true;
+      const sec = document.createElement('div');
+      sec.className = 'pick-sec';
+      const lab = document.createElement('span');
+      lab.textContent = (cols.length > 1 ? colLabel(col) + ' — ' : '') + 'AVAILABLE';
+      sec.appendChild(lab);
+      const boxes = [];
+      if(free.length > 1){
+        const all = document.createElement('button');
+        all.textContent = 'select all';
+        all.addEventListener('click', ()=>{ boxes.filter(b=>!b.cb.checked && !b.busy).forEach(b=>{ b.cb.checked = true; toggle(col, b.tech, b.cb); }); });
+        sec.appendChild(all);
+      }
+      wrap.appendChild(sec);
+      const mkRow = (tech, busyInfo)=>{
+        const row = document.createElement('label');
+        row.className = 'pick-row' + (busyInfo ? ' busy' : '');
+        const cb = document.createElement('input'); cb.type = 'checkbox';
+        cb.addEventListener('change', ()=>toggle(col, tech, cb));
+        row.appendChild(cb);
+        const nm = document.createElement('span');
+        nm.textContent = (senLabel(tech) ? senLabel(tech) + ' ' : '') + (tech.name || '(unnamed)');
+        row.appendChild(nm);
+        if(busyInfo){ const sub = document.createElement('span'); sub.className = 'pick-sub'; sub.textContent = busyInfo; row.appendChild(sub); }
+        wrap.appendChild(row);
+        boxes.push({ cb, tech, busy: !!busyInfo });
+      };
+      free.forEach(t=>mkRow(t, ''));
+      if(free.length === 0){ const e = document.createElement('div'); e.className = 'pick-hint'; e.textContent = 'Everyone is already scheduled.'; wrap.appendChild(e); }
+      if(busy.length){
+        const s2 = document.createElement('div');
+        s2.className = 'pick-sec'; s2.textContent = 'ALREADY WORKING — ADD AS AN EXTRA JOB';
+        wrap.appendChild(s2);
+        busy.forEach(t=>{
+          const p = effPlacement(col, t.id);
+          const d = board.districts.find(x=>x.id === p.districtId);
+          mkRow(t, d ? d.label : 'other job');
+        });
+      }
+    });
+    if(!any){ const e = document.createElement('div'); e.className = 'pick-hint'; e.textContent = 'No one is available.'; wrap.appendChild(e); }
+    const actions = document.createElement('div');
+    actions.className = 'pick-actions';
+    const cancel = document.createElement('button');
+    cancel.className = 'btn'; cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', closeTechPicker);
+    addBtn.addEventListener('click', ()=>{
+      const items = Array.from(picked.values());
+      closeTechPicker();
+      items.forEach(it=>assignTechToJob(it.col, it.techId, district.id));
+      save(); render();
+      new Set(items.map(it=>it.col.key)).forEach(k=>flashCell(k, district.id));
+    });
+    actions.appendChild(cancel); actions.appendChild(addBtn);
+    wrap.appendChild(actions);
+    document.body.appendChild(wrap);
+    pickerEl = wrap;
+    const r = anchor.getBoundingClientRect();
+    wrap.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 296)) + 'px';
+    const h = Math.min(wrap.offsetHeight, window.innerHeight * 0.7);
+    wrap.style.top = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - h - 8)) + 'px';
+    pickerOutside = (e)=>{ if(pickerEl && !pickerEl.contains(e.target) && e.target !== anchor) closeTechPicker(); };
+    pickerEsc = (e)=>{ if(e.key === 'Escape') closeTechPicker(); };
+    document.addEventListener('mousedown', pickerOutside, true);
+    document.addEventListener('keydown', pickerEsc, true);
+    isEditingText = true;
+  }
+
+  function buildCellNote(col, district){
+    const el = document.createElement('div');
+    el.className = 'cell-note';
+    el.contentEditable = true;
+    el.textContent = getCellNote(col, district.id);
+    el.title = 'Note for ' + district.label + ' this ' + (col.dayIdx == null ? 'week' : 'day');
+    el.addEventListener('focus', ()=>{ isEditingText = true; });
+    el.addEventListener('blur', ()=>{
+      isEditingText = false;
+      setCellNote(col, district.id, el.textContent);
+      save();
+    });
+    el.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); el.blur(); }
+    });
+    return el;
+  }
+
+  function buildDistrictRow(district, isBench, isFirst, isLast, cols, meta){
+    meta = meta || {};
+    const tr = document.createElement('tr');
+    if(isBench) tr.className = 'bench-row';
+    if(meta.empty) tr.className = 'empty-job';
+    tr.dataset.districtId = district.id;
+
+    const rowHead = document.createElement('td');
+    rowHead.className = 'district-head' + (isBench ? ' bench-head' : '');
+    const rowActions = document.createElement('div');
+    rowActions.className = 'district-row-actions';
+    const dInput = document.createElement('input');
+    dInput.className = 'district-title';
+    dInput.value = district.label;
+    dInput.addEventListener('focus', ()=>{ isEditingText = true; });
+    dInput.addEventListener('blur', ()=>{ isEditingText = false; district.label = dInput.value; save(); });
+    rowActions.appendChild(dInput);
+
+    if(isBench){
+      const toggle = document.createElement('button');
+      toggle.className = 'bench-collapse-btn';
+      toggle.textContent = benchCollapsed ? 'Show' : 'Hide';
+      toggle.title = benchCollapsed ? 'Show unassigned techs' : 'Hide unassigned techs';
+      toggle.addEventListener('click', ()=>{ benchCollapsed = !benchCollapsed; render(); });
+      rowActions.appendChild(toggle);
+    } else {
+      const moveUp = document.createElement('button');
+      moveUp.className = 'mini-move'; moveUp.textContent = '▲'; moveUp.title = (board.districtSort||'manual') !== 'manual' ? 'Switch sort to Manual to reorder' : 'Move district up';
+      moveUp.disabled = !!isFirst || (board.districtSort||'manual') !== 'manual';
+      moveUp.addEventListener('click', ()=>moveDistrict(district.id, -1));
+      rowActions.appendChild(moveUp);
+
+      const moveDown = document.createElement('button');
+      moveDown.className = 'mini-move'; moveDown.textContent = '▼'; moveDown.title = (board.districtSort||'manual') !== 'manual' ? 'Switch sort to Manual to reorder' : 'Move district down';
+      moveDown.disabled = !!isLast || (board.districtSort||'manual') !== 'manual';
+      moveDown.addEventListener('click', ()=>moveDistrict(district.id, 1));
+      rowActions.appendChild(moveDown);
+
+      const weekIdsShown = Array.from(new Set(cols.map(c=>c.weekId)));
+      const rm = document.createElement('button');
+      rm.className = 'mini-x'; rm.innerHTML = '&times;';
+      if(weekIdsShown.length === 1){
+        rm.title = 'Remove this job from the week';
+        rm.addEventListener('click', ()=>{
+          if(!confirm('Remove "'+district.label+'" from this week? Anyone assigned there goes back to the bench for this week. The job stays in the suggestion list for later weeks.')) return;
+          removeJobFromWeek(weekIdsShown[0], district.id);
+          save(); render();
+        });
+      } else {
+        rm.title = 'Show a single week to remove jobs';
+        rm.disabled = true;
+      }
+      rowActions.appendChild(rm);
+    }
+    rowHead.appendChild(rowActions);
+    if(isBench){
+      const eyebrow = document.createElement('div');
+      eyebrow.className = 'bench-eyebrow';
+      eyebrow.textContent = viewMode === 'day' ? 'UNASSIGNED THIS DAY' : 'UNASSIGNED THIS WEEK';
+      rowHead.insertBefore(eyebrow, rowHead.firstChild);
+    } else {
+      rowHead.appendChild(buildAddTechButton(district, cols));
+      if(meta.empty){
+        const eh = document.createElement('div');
+        eh.className = 'empty-job-hint'; eh.textContent = 'No techs yet';
+        rowHead.appendChild(eh);
+      }
+    }
+    tr.appendChild(rowHead);
+
+    cols.forEach((col, colIdx)=>{
+      const td = document.createElement('td');
+      td.className = 'cell';
+      td.dataset.weekId = col.weekId;
+      td.dataset.colKey = col.key;
+      td.dataset.districtId = district.id;
+
+      const orderArr = orderObjFor(col)[district.id] || [];
+      const techsHere = sortTechList(orderArr.map(tid => board.techs.find(t=>t.id===tid)).filter(Boolean));
+      const extrasHere = isBench ? [] : extraList(col).filter(x=>x.districtId === district.id);
+      if(techsHere.length > 0 || extrasHere.length > 0){
+        td.classList.add('has-techs');
+      }
+
+      if((techsHere.length > 0 || extrasHere.length > 0) && !(isBench && benchCollapsed)){
+        const controls = document.createElement('div');
+        controls.className = 'cell-copy-controls';
+        const unit = col.dayIdx == null ? 'week' : 'day';
+
+        const leftBtn = document.createElement('button');
+        leftBtn.className = 'cell-copy-btn';
+        leftBtn.textContent = '←';
+        leftBtn.title = 'Copy this crew to the previous ' + unit;
+        leftBtn.disabled = colIdx === 0;
+        leftBtn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          copyCellToAdjacentCol(col, district.id, -1);
+        });
+        controls.appendChild(leftBtn);
+
+        const rightBtn = document.createElement('button');
+        rightBtn.className = 'cell-copy-btn';
+        rightBtn.textContent = '→';
+        rightBtn.title = 'Copy this crew to the next ' + unit;
+        rightBtn.disabled = colIdx === cols.length - 1;
+        rightBtn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          copyCellToAdjacentCol(col, district.id, 1);
+        });
+        controls.appendChild(rightBtn);
+
+        td.appendChild(controls);
+        td.classList.add('has-copy-space');
+      }
+
+      if(isBench && benchCollapsed){
+        const hint = document.createElement('div');
+        hint.className = 'bench-collapsed-hint';
+        hint.textContent = techsHere.length + ' unassigned';
+        td.appendChild(hint);
+      } else {
+        if(techsHere.length === 0 && extrasHere.length === 0){
+          const hint = document.createElement('div');
+          hint.className = 'empty-cell-hint';
+          hint.textContent = isBench ? '' : 'Drop a tech here';
+          td.appendChild(hint);
+        }
+        // The bench is capped in height and scrolls; other cells grow with their crew.
+        let holder = td;
+        if(isBench && techsHere.length > 0){
+          holder = document.createElement('div');
+          holder.className = 'bench-scroll';
+          td.appendChild(holder);
+        }
+        techsHere.forEach((tech, idx)=>{
+          holder.appendChild(renderChip(tech, col, district, idx, techsHere.length));
+        });
+        extrasHere.forEach(x=>{
+          const tech = board.techs.find(t=>t.id === x.techId);
+          if(tech) holder.appendChild(renderChip(tech, col, district, 0, 1, { x:x.id }));
+        });
+        if(!isBench) td.appendChild(buildCellNote(col, district));
+      }
+
+      td.addEventListener('dragover', (e)=>{
+        if(dragFromCol !== col.key) return;
+        e.preventDefault();
+        td.classList.add('drag-over');
+      });
+      td.addEventListener('dragleave', ()=>{ td.classList.remove('drag-over'); });
+      td.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        td.classList.remove('drag-over');
+        if(!dragTechId || dragFromCol !== col.key) return;
+        placeTech(col, dragTechId, district.id);
+        const flashKey = col.key;
+        dragTechId = null; dragFromCol = null;
+        save(); render();
+        flashCell(flashKey, district.id);
+      });
+
+      tr.appendChild(td);
+    });
+
+    const spacerTd = document.createElement('td');
+    tr.appendChild(spacerTd);
+
+    return tr;
+  }
+
+  function buildWeekHead(week, dayMode){
+    const th = document.createElement('th');
+    th.className = 'week-head';
+
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'week-title';
+    titleDiv.textContent = week.date ? formatWeekLabel(week.date) : 'New week';
+    th.appendChild(titleDiv);
+
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.className = 'week-date-input';
+    dateInput.value = week.date || '';
+    dateInput.addEventListener('focus', ()=>{ isEditingText = true; });
+    dateInput.addEventListener('change', ()=>{
+      isEditingText = false;
+      week.date = dateInput.value;
+      save(); render();
+    });
+    dateInput.addEventListener('blur', ()=>{ isEditingText = false; });
+    th.appendChild(dateInput);
+
+    if(!dayMode){
+      if(week.date){
+        const strip = document.createElement('div');
+        strip.className = 'week-daystrip';
+        formatWeekDayStrip(week.date).forEach(dayLabel=>{
+          const d = document.createElement('span');
+          d.className = 'daystrip-day';
+          d.textContent = dayLabel;
+          strip.appendChild(d);
+        });
+        th.appendChild(strip);
+      } else {
+        const hint = document.createElement('div');
+        hint.className = 'week-nodate';
+        hint.textContent = 'Pick a start date →';
+        th.appendChild(hint);
+      }
+      th.appendChild(makeBenchCount({ weekId:week.id, dayIdx:null, key:week.id, week }));
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'col-actions';
+    const rm = document.createElement('button');
+    rm.className = 'mini-x'; rm.innerHTML = '&times;'; rm.title = 'Archive week';
+    rm.addEventListener('click', ()=>{
+      const label = week.date ? formatWeekLabel(week.date) : 'this week';
+      if(confirm('Archive "'+label+'"? It will move out of the active board, but you can restore it later from Archive.')){
+        archiveWeek(week.id);
+      }
+    });
+    actions.appendChild(rm);
+    th.appendChild(actions);
+    return th;
+  }
+
+  // In Day view the header has two sticky rows; the second sits just below the first.
+  function fixDayHeaderOffset(){
+    const first = tableEl.querySelector('thead tr:first-child');
+    const second = tableEl.querySelector('thead tr:nth-child(2)');
+    if(!first || !second) return;
+    const h = first.getBoundingClientRect().height;
+    second.querySelectorAll('th').forEach(th=>{ th.style.top = h + 'px'; });
+  }
+
+  function render(){
+    reconcileAll();
+    const cols = getColumns();
+    const dayMode = viewMode === 'day';
+    tableEl.className = 'grid' + (dayMode ? ' day-mode' : '');
+    tableEl.innerHTML = "";
+
+    // header row(s)
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    const corner = document.createElement('th');
+    corner.className = 'corner';
+    if(dayMode) corner.rowSpan = 2;
+    const techLayout = layoutMode === 'tech';
+    const cl = document.createElement('div');
+    cl.className = 'corner-label';
+    cl.textContent = techLayout ? 'TECHS' : 'JOBS / SCHOOLS';
+    cl.style.paddingBottom = '4px';
+    corner.appendChild(cl);
+    if(!techLayout) corner.appendChild(buildSortSelect('districtSort'));
+    corner.appendChild(buildSortSelect('techSort'));
+    headRow.appendChild(corner);
+
+    shownWeeks().forEach(week=>{
+      const th = buildWeekHead(week, dayMode);
+      if(dayMode) th.colSpan = DAYS_PER_WEEK;
+      headRow.appendChild(th);
+    });
+
+    const addWeekTh = document.createElement('th');
+    addWeekTh.className = 'add-week-cell';
+    if(dayMode) addWeekTh.rowSpan = 2;
+    const addWeekBtnCell = document.createElement('button');
+    addWeekBtnCell.textContent = '+ Week';
+    addWeekBtnCell.addEventListener('click', addWeek);
+    addWeekTh.appendChild(addWeekBtnCell);
+    headRow.appendChild(addWeekTh);
+    thead.appendChild(headRow);
+
+    if(dayMode){
+      const dayRow = document.createElement('tr');
+      cols.forEach(col=>{
+        const th = document.createElement('th');
+        th.className = 'day-head';
+        th.appendChild(document.createTextNode(colLabel(col)));
+        th.appendChild(makeBenchCount(col));
+        dayRow.appendChild(th);
+      });
+      thead.appendChild(dayRow);
+    }
+    tableEl.appendChild(thead);
+
+    // body rows: bench shelf first (visually separated), then one row per district
+    const tbody = document.createElement('tbody');
+
+    if(techLayout){
+      orderedTechs().forEach(tech=>{ tbody.appendChild(buildTechRow(tech, cols)); });
+      const addTr = document.createElement('tr');
+      addTr.className = 'add-tech-row';
+      const addTd = document.createElement('td');
+      const addBtn = document.createElement('button');
+      addBtn.textContent = '+ Add tech';
+      addBtn.addEventListener('click', addTech);
+      addTd.appendChild(addBtn);
+      addTr.appendChild(addTd);
+      cols.forEach(()=>{ addTr.appendChild(document.createElement('td')); });
+      addTr.appendChild(document.createElement('td'));
+      tbody.appendChild(addTr);
+    } else {
+      const dd = displayDistricts(cols);
+      if(dd.bench){
+        tbody.appendChild(buildDistrictRow(dd.bench, true, false, false, cols));
+      }
+      // jobs with techs first; jobs nobody is on this week sink to the bottom
+      dd.staffed.forEach((district, idx)=>{
+        tbody.appendChild(buildDistrictRow(district, false, idx===0, idx===dd.staffed.length-1, cols, { empty:false }));
+      });
+      dd.empty.forEach((district, idx)=>{
+        tbody.appendChild(buildDistrictRow(district, false, idx===0, idx===dd.empty.length-1, cols, { empty:true }));
+      });
+
+      // add-job row
+      const addTr = document.createElement('tr');
+      addTr.className = 'add-district-row';
+      const addTd = document.createElement('td');
+      const addBtn = document.createElement('button');
+      addBtn.id = 'addJobBtn';
+      addBtn.textContent = '+ Add job';
+      addBtn.addEventListener('click', ()=>openAddJob(cols));
+      addTd.appendChild(addBtn);
+      addTr.appendChild(addTd);
+      cols.forEach(()=>{ addTr.appendChild(document.createElement('td')); });
+      addTr.appendChild(document.createElement('td'));
+      tbody.appendChild(addTr);
+    }
+
+    tableEl.appendChild(tbody);
+    if(dayMode) fixDayHeaderOffset();
+    renderKeyBar();
+    updateViewButtons();
+    if(activeTab === 'techPool') renderTechPool();
+  }
+
+  // Jobs on the displayed week(s), split into those with techs and those with none.
+  function displayDistricts(cols){
+    const od = orderedDistricts();
+    const weekIds = Array.from(new Set(cols.map(c=>c.weekId)));
+    const active = od.others.filter(d=>weekIds.some(w=>isJobActiveIn(w, d.id)));
+    const used = new Set();
+    cols.forEach(col=>{
+      board.techs.forEach(t=>{ const d = effPlacement(col, t.id).districtId; if(d !== 'bench') used.add(d); });
+      extraList(col).forEach(x=>{ if(x.districtId) used.add(x.districtId); });
+    });
+    return { bench: od.bench, staffed: active.filter(d=>used.has(d.id)), empty: active.filter(d=>!used.has(d.id)) };
+  }
+
+  function buildSortSelect(prop){
+    const sel = document.createElement('select');
+    sel.className = 'corner-sort';
+    sel.id = prop === 'techSort' ? 'techSortSel' : 'districtSortSel';
+    sel.title = prop === 'techSort' ? 'Sort the tech list' : 'Sort the district list';
+    const opts = prop === 'techSort'
+      ? [['manual','Techs: manual order'],['sen','Techs: by seniority'],['az','Techs: A → Z'],['za','Techs: Z → A']]
+      : [['manual','Jobs: manual order'],['az','Jobs: A → Z'],['za','Jobs: Z → A']];
+    opts.forEach(([v,l])=>{
+      const o = document.createElement('option'); o.value = v; o.textContent = l;
+      if((board[prop]||'manual') === v) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('focus', ()=>{ isEditingText = true; });
+    sel.addEventListener('blur', ()=>{ isEditingText = false; });
+    sel.addEventListener('change', ()=>{
+      isEditingText = false;
+      board[prop] = sel.value;
+      save(); render();
+    });
+    return sel;
+  }
+
+  function flashTechCell(colKey, techId){
+    const t = tableEl.querySelector('td.tech-cell[data-col-key="'+colKey+'"][data-tech-id="'+techId+'"]');
+    if(t){ t.classList.add('just-placed'); setTimeout(()=>t.classList.remove('just-placed'), 700); }
+  }
+
+  // One row per tech; each column cell shows which district they're in.
+  function buildTechRow(tech, cols){
+    const tr = document.createElement('tr');
+    tr.dataset.techId = tech.id;
+    const head = document.createElement('td');
+    head.className = 'district-head tech-head';
+    head.style.borderLeftColor = techColor(tech);
+    const top = document.createElement('div');
+    top.className = 'tech-head-top';
+    if(senLabel(tech)){
+      const sn = document.createElement('span');
+      sn.className = 'tech-sen'; sn.textContent = senLabel(tech); sn.title = 'Seniority ' + senLabel(tech);
+      top.appendChild(sn);
+    }
+    const nameIn = document.createElement('input');
+    nameIn.className = 'district-title';
+    nameIn.placeholder = 'Tech name';
+    nameIn.value = tech.name || '';
+    nameIn.addEventListener('focus', ()=>{ isEditingText = true; });
+    nameIn.addEventListener('blur', ()=>{
+      isEditingText = false;
+      const v = nameIn.value.trim();
+      if(v !== (tech.name||'')){ tech.name = v; save(); if((board.techSort||'manual') !== 'manual') render(); }
+    });
+    top.appendChild(nameIn);
+    const prof = document.createElement('button');
+    prof.className = 'tech-prof'; prof.textContent = 'i'; prof.title = 'View / edit profile';
+    prof.addEventListener('click', ()=>openProfile(tech.id));
+    top.appendChild(prof);
+    const rm = document.createElement('button');
+    rm.className = 'mini-x'; rm.innerHTML = '&times;'; rm.title = 'Remove from roster';
+    rm.addEventListener('click', ()=>deleteTechFromRoster(tech.id));
+    top.appendChild(rm);
+    head.appendChild(top);
+    const role = document.createElement('div');
+    role.className = 'tech-head-role';
+    role.textContent = tech.role || '';
+    head.appendChild(role);
+    tr.appendChild(head);
+
+    cols.forEach(col=>{
+      const td = document.createElement('td');
+      const jobs = techJobs(col, tech.id);
+      const assignedJobs = jobs.filter(j=>j.job.districtId && j.job.districtId !== 'bench');
+      const assigned = assignedJobs.length > 0;
+      const allDone = assigned && assignedJobs.every(j=>j.job.done);
+      td.className = 'cell tech-cell' + (assigned ? ' has-techs' : '') + (allDone ? ' all-done' : '');
+      td.dataset.weekId = col.weekId; td.dataset.colKey = col.key; td.dataset.techId = tech.id;
+      td.dataset.districtId = effPlacement(col, tech.id).districtId;
+      const hasOverride = col.dayIdx != null && !!dayPlacementOf(col.weekId, col.dayIdx, tech.id);
+      if(hasOverride) td.classList.add('day-override-cell');
+
+      jobs.forEach(({ ref, job })=>{
+        const isExtra = !!ref.x;
+        const row = document.createElement('div');
+        row.className = 'job-row' + (job.done ? ' done' : '');
+        const head = document.createElement('div');
+        head.style.display = 'flex'; head.style.gap = '4px'; head.style.alignItems = 'center';
+        const sel = document.createElement('select');
+        sel.className = 'chip-district-select';
+        sel.style.marginTop = '0';
+        sel.title = 'Which job this tech is on for this ' + (col.dayIdx == null ? 'week' : 'day');
+        fillDistrictOptions(sel, job.districtId, col.weekId, { allowBench: !isExtra, placeholder: isExtra && !job.districtId });
+        sel.addEventListener('focus', ()=>{ isEditingText = true; });
+        sel.addEventListener('blur', ()=>{ isEditingText = false; });
+        sel.addEventListener('change', ()=>{
+          isEditingText = false;
+          const v = sel.value;
+          if(v === '__new__'){
+            sel.value = job.districtId || '';
+            openJobModal({ weekIds:[col.weekId], onAdded:(did)=>{
+              if(isExtra) patchJob(col, tech.id, ref, { districtId: did }); else placeTech(col, tech.id, did);
+            }});
+            return;
+          }
+          if(v === (job.districtId || '')) return;
+          if(isExtra) patchJob(col, tech.id, ref, { districtId: v });
+          else if(v === 'bench') sendPrimaryToBench(col, tech.id);
+          else placeTech(col, tech.id, v);
+          save(); render();
+          flashTechCell(col.key, tech.id);
+        });
+        head.appendChild(sel);
+        if(isExtra){
+          const x = document.createElement('button');
+          x.className = 'job-x'; x.innerHTML = '&times;'; x.title = 'Remove this additional job';
+          x.addEventListener('click', ()=>{
+            if(!confirm('Remove this additional job for '+(tech.name || 'this tech')+'?')) return;
+            removeExtra(col, ref.x); save(); render();
+          });
+          head.appendChild(x);
+        }
+        row.appendChild(head);
+        if(job.districtId && job.districtId !== 'bench'){
+          row.appendChild(buildJobFields(col, tech, ref, job, 'job'));
+        }
+        const note = document.createElement('div');
+        note.className = 'chip-note';
+        note.contentEditable = true;
+        note.textContent = job.note || '';
+        note.addEventListener('focus', ()=>{ isEditingText = true; });
+        note.addEventListener('blur', ()=>{
+          isEditingText = false;
+          const cur = jobOf(col, tech.id, ref);
+          if(!cur) return;
+          const txt = note.textContent.trim();
+          if(txt === (cur.note||'')) return;
+          patchJob(col, tech.id, ref, { note: txt });
+          save();
+        });
+        row.appendChild(note);
+        td.appendChild(row);
+      });
+
+      if(col.dayIdx != null && assigned){
+        const add = document.createElement('button');
+        add.className = 'job-add-btn';
+        add.textContent = '+ Add another job';
+        add.title = 'Give ' + (tech.name || 'this tech') + ' a second job (with its own start time) on this day';
+        add.addEventListener('click', ()=>{ addExtra(col, tech.id, ''); save(); render(); });
+        td.appendChild(add);
+      }
+
+      if(col.dayIdx == null){
+        const diffs = techDayDiffs(col.weekId, tech.id);
+        if(diffs.length > 0){
+          const badge = document.createElement('div');
+          badge.className = 'chip-badge';
+          badge.textContent = 'Days differ';
+          badge.title = diffs.map(df=>{
+            const d = board.districts.find(x=>x.id===df.districtId);
+            return ['Mon','Tue','Wed','Thu','Fri'][df.dayIdx] + ': ' + (df.extra ? '+ ' : '') + (df.districtId==='bench' ? 'Bench' : (d ? d.label : '?'));
+          }).join('\n') + '\n(Switch to Day view to edit)';
+          td.appendChild(badge);
+        }
+      } else if(hasOverride){
+        const reset = document.createElement('button');
+        reset.className = 'chip-reset';
+        reset.textContent = '\u21ba week plan';
+        reset.title = 'Remove this day-specific change and follow the week plan again';
+        reset.addEventListener('click', ()=>{ clearDayOverride(col, tech.id); save(); render(); });
+        td.appendChild(reset);
+      }
+      tr.appendChild(td);
+    });
+    tr.appendChild(document.createElement('td'));
+    return tr;
+  }
+
+  // ============ KEY (color legend) ============
+  function newKeyId(){ return 'k' + uid(); }
+  function keyUsage(id){ return board.techs.filter(t=>t.keyId === id).length; }
+  function renderKeyBar(){
+    const bar = document.getElementById('keyBar');
+    if(!bar) return;
+    bar.innerHTML = '';
+    const title = document.createElement('span');
+    title.className = 'key-title'; title.textContent = 'KEY';
+    bar.appendChild(title);
+    const key = board.key || [];
+    if(key.length === 0 && !keyEditing){
+      const e = document.createElement('span');
+      e.className = 'key-empty';
+      e.textContent = 'No key yet — click “Edit key” to add colors and labels (e.g. Fiber crew, Install crew).';
+      bar.appendChild(e);
+    }
+    key.forEach(k=>{
+      const item = document.createElement('span');
+      item.className = 'key-item';
+      item.dataset.keyId = k.id;
+      if(keyEditing){
+        const ci = document.createElement('input');
+        ci.type = 'color'; ci.value = k.color; ci.title = 'Change this color for every tech using it';
+        ci.addEventListener('change', ()=>{
+          k.color = ci.value;
+          board.techs.forEach(t=>{ if(t.keyId === k.id) t.color = k.color; });
+          save(); render();
+        });
+        item.appendChild(ci);
+        const li = document.createElement('input');
+        li.type = 'text'; li.value = k.label; li.placeholder = 'Label';
+        li.addEventListener('focus', ()=>{ isEditingText = true; });
+        li.addEventListener('blur', ()=>{
+          isEditingText = false;
+          if(li.value !== k.label){ k.label = li.value; save(); }
+        });
+        li.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') li.blur(); });
+        item.appendChild(li);
+        const n = keyUsage(k.id);
+        const cnt = document.createElement('span');
+        cnt.className = 'key-count'; cnt.textContent = n + ' tech' + (n===1?'':'s');
+        item.appendChild(cnt);
+        const del = document.createElement('button');
+        del.className = 'key-del'; del.innerHTML = '&times;'; del.title = 'Delete this key entry (techs keep their color)';
+        del.addEventListener('click', ()=>{
+          const used = keyUsage(k.id);
+          if(!confirm('Delete "'+(k.label||'this color')+'" from the key?' + (used ? ' The '+used+' tech'+(used===1?'':'s')+' using it keep their color.' : ''))) return;
+          board.techs.forEach(t=>{ if(t.keyId === k.id) t.keyId = ''; });
+          board.key = board.key.filter(x=>x.id !== k.id);
+          save(); render();
+        });
+        item.appendChild(del);
+      } else {
+        const sw = document.createElement('span');
+        sw.className = 'key-swatch'; sw.style.background = k.color;
+        item.appendChild(sw);
+        const lb = document.createElement('span');
+        lb.textContent = k.label || '(no label)';
+        item.appendChild(lb);
+        const n = keyUsage(k.id);
+        if(n){ const c = document.createElement('span'); c.className = 'key-count'; c.textContent = '(' + n + ')'; item.appendChild(c); }
+      }
+      bar.appendChild(item);
+    });
+    if(keyEditing){
+      const add = document.createElement('button');
+      add.className = 'key-add-btn'; add.textContent = '+ Add color';
+      add.addEventListener('click', ()=>{
+        const used = new Set((board.key||[]).map(k=>k.color.toLowerCase()));
+        const color = COLORS.find(c=>!used.has(c.toLowerCase())) || COLORS[0];
+        board.key.push({ id:newKeyId(), color, label:'' });
+        save(); render();
+      });
+      bar.appendChild(add);
+    }
+    const eb = document.createElement('button');
+    eb.id = 'keyEditBtn';
+    eb.className = 'key-edit-btn' + (keyEditing ? ' active' : '');
+    eb.textContent = keyEditing ? 'Done' : 'Edit key';
+    eb.addEventListener('click', ()=>{ keyEditing = !keyEditing; renderKeyBar(); });
+    bar.appendChild(eb);
+  }
+
+  let activeTab = 'board';
+  function switchTab(tab){
+    activeTab = tab;
+    document.getElementById('boardView').style.display = tab==='board' ? '' : 'none';
+    document.getElementById('techPoolView').style.display = tab==='techPool' ? '' : 'none';
+    document.getElementById('tabBoardBtn').classList.toggle('active', tab==='board');
+    document.getElementById('tabPoolBtn').classList.toggle('active', tab==='techPool');
+    document.getElementById('viewToggle').style.display = tab==='board' ? '' : 'none';
+    if(tab==='techPool') renderTechPool();
+    else render();   // day-view header offsets can only be measured while the board is visible
+  }
+
+  function weekOptionLabel(w, i){ return w.date ? formatWeekLabel(w.date) : 'Week ' + (i+1) + ' (no date)'; }
+  function refreshWeekPicker(){
+    const sel = document.getElementById('weekPickSel');
+    if(!sel) return;
+    const f = focusedWeek();
+    const sig = board.weeks.map((w,i)=>w.id + weekOptionLabel(w,i)).join('|');
+    if(sel.dataset.sig !== sig){
+      sel.innerHTML = '';
+      board.weeks.forEach((w,i)=>{
+        const o = document.createElement('option'); o.value = w.id; o.textContent = weekOptionLabel(w, i); sel.appendChild(o);
+      });
+      const all = document.createElement('option'); all.value = 'all'; all.textContent = 'All weeks'; sel.appendChild(all);
+      sel.dataset.sig = sig;
+    }
+    sel.value = f ? f.id : 'all';
+    const idx = f ? board.weeks.indexOf(f) : -1;
+    document.getElementById('weekPrevBtn').disabled = !f || idx <= 0;
+    document.getElementById('weekNextBtn').disabled = !f || idx >= board.weeks.length - 1;
+  }
+  function stepWeek(dir){
+    const f = focusedWeek();
+    if(!f) return;
+    const n = board.weeks[board.weeks.indexOf(f) + dir];
+    if(!n) return;
+    setWeekFocus(n.id);
+    renderKeepScroll();
+  }
+  function updateViewButtons(){
+    document.getElementById('viewWeekBtn').classList.toggle('active', viewMode==='week');
+    document.getElementById('viewDayBtn').classList.toggle('active', viewMode==='day');
+    refreshWeekPicker();
+    document.getElementById('layoutDistrictBtn').classList.toggle('active', layoutMode==='district');
+    document.getElementById('layoutTechBtn').classList.toggle('active', layoutMode==='tech');
+  }
+  function renderKeepScroll(){
+    const wrap = document.querySelector('.grid-wrap');
+    const l = wrap ? wrap.scrollLeft : 0, t = wrap ? wrap.scrollTop : 0;
+    render();
+    if(wrap){ wrap.scrollLeft = l; wrap.scrollTop = t; }
+  }
+  function setViewMode(mode){
+    viewMode = mode;
+    try{ localStorage.setItem('crew-board-view', mode); }catch(e){}
+    updateViewButtons();
+    renderKeepScroll();
+  }
+  function setLayoutMode(mode){
+    layoutMode = mode;
+    try{ localStorage.setItem('crew-board-layout', mode); }catch(e){}
+    renderKeepScroll();
+  }
+
+  // ============ TECH POOL ============
+  function renderTechPool(){
+    const gridEl = document.getElementById('poolGrid');
+    const countEl = document.getElementById('poolCount');
+    const searchEl = document.getElementById('poolSearch');
+    const term = (searchEl.value || '').trim().toLowerCase();
+
+    const filtered = orderedTechs().filter(t => !term || (t.name||'').toLowerCase().includes(term));
+    countEl.textContent = filtered.length + ' of ' + board.techs.length + ' techs';
+
+    gridEl.innerHTML = '';
+    if(board.techs.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'pool-empty';
+      empty.textContent = 'No techs yet \u2014 use "+ Add tech" to build the roster.';
+      gridEl.appendChild(empty);
+      return;
+    }
+    if(filtered.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'pool-empty';
+      empty.textContent = 'No techs match "' + searchEl.value + '".';
+      gridEl.appendChild(empty);
+      return;
+    }
+
+    filtered.forEach(tech=>{
+      gridEl.appendChild(renderPoolCard(tech));
+    });
+  }
+
+  function renderPoolCard(tech){
+    const card = document.createElement('div');
+    card.className = 'pool-card';
+    card.style.borderLeftColor = techColor(tech);
+
+    const top = document.createElement('div');
+    top.className = 'pool-card-top';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'pool-name';
+    nameEl.contentEditable = true;
+    nameEl.textContent = tech.name;
+    nameEl.addEventListener('focus', ()=>{ isEditingText = true; });
+    nameEl.addEventListener('blur', ()=>{
+      isEditingText = false;
+      tech.name = nameEl.textContent.trim();
+      save(); renderTechPool();
+    });
+    top.appendChild(nameEl);
+    const del = document.createElement('button');
+    del.className = 'pool-del';
+    del.innerHTML = '&times;';
+    del.title = 'Remove from roster';
+    del.addEventListener('click', ()=>{ deleteTechFromRoster(tech.id); renderTechPool(); });
+    top.appendChild(del);
+    card.appendChild(top);
+
+    const row2 = document.createElement('div');
+    row2.className = 'pool-row2';
+    row2.appendChild(makePoolField('Role', tech, 'role', 'e.g. Lead Technician'));
+    row2.appendChild(makePoolField('Phone', tech, 'phone', 'e.g. (516) 555-0142'));
+    card.appendChild(row2);
+    card.appendChild(buildSeniorityField(tech));
+    card.appendChild(buildColorPicker(tech));
+
+    const emailRow = document.createElement('div');
+    emailRow.className = 'pool-email-row';
+    const emailField = makePoolField('Email', tech, 'email', 'e.g. jsmith@ncdcom.com', true);
+    emailRow.appendChild(emailField);
+    if(emailValid(tech.email)){
+      const a = document.createElement('a');
+      a.className = 'pool-email-btn';
+      a.href = 'mailto:' + tech.email;
+      a.textContent = 'Email';
+      emailRow.appendChild(a);
+    } else if(tech.email){
+      const span = document.createElement('span');
+      span.className = 'pool-email-btn-disabled';
+      span.textContent = 'Email';
+      emailRow.appendChild(span);
+    }
+    card.appendChild(emailRow);
+
+    const detailWrap = document.createElement('div');
+    detailWrap.className = 'pool-field pool-detail';
+    const detailLabel = document.createElement('label');
+    detailLabel.textContent = 'Detail';
+    detailWrap.appendChild(detailLabel);
+    const detailArea = document.createElement('textarea');
+    detailArea.value = tech.detail || '';
+    detailArea.placeholder = 'Certifications, specialties, or detail of work';
+    detailArea.addEventListener('focus', ()=>{ isEditingText = true; });
+    detailArea.addEventListener('blur', ()=>{
+      isEditingText = false;
+      tech.detail = detailArea.value;
+      save(); renderTechPool();
+    });
+    detailWrap.appendChild(detailArea);
+    card.appendChild(detailWrap);
+
+    return card;
+  }
+
+  function buildSeniorityField(tech){
+    const wrap = document.createElement('div');
+    wrap.className = 'pool-field pool-sen';
+    const label = document.createElement('label');
+    label.textContent = 'Seniority # (1 = most senior)';
+    wrap.appendChild(label);
+    const input = document.createElement('input');
+    input.type = 'number'; input.min = '1'; input.step = '1';
+    input.className = 'pool-sen-input';
+    input.placeholder = 'e.g. 3';
+    input.value = (tech.seniority === '' || tech.seniority == null) ? '' : tech.seniority;
+    input.addEventListener('focus', ()=>{ isEditingText = true; });
+    input.addEventListener('blur', ()=>{ isEditingText = false; });
+    input.addEventListener('change', ()=>{
+      isEditingText = false;
+      const n = parseInt(input.value, 10);
+      const next = (isNaN(n) || n < 1) ? '' : n;
+      if(next === tech.seniority) return;
+      tech.seniority = next;
+      save(); render();
+    });
+    input.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') input.blur(); });
+    wrap.appendChild(input);
+    return wrap;
+  }
+
+  function buildColorPicker(tech){
+    const wrap = document.createElement('div');
+    wrap.className = 'pool-color';
+    const lab = document.createElement('label'); lab.textContent = 'COLOR';
+    wrap.appendChild(lab);
+    const row = document.createElement('div'); row.className = 'pool-swatches';
+    const cur = techColor(tech).toLowerCase();
+    const mk = (color, cls, title, onPick, selected)=>{
+      const b = document.createElement('button');
+      b.className = 'pool-sw ' + cls + (selected ? ' sel' : '');
+      b.style.background = color; b.title = title; b.type = 'button';
+      b.addEventListener('click', ()=>{ onPick(); save(); render(); });
+      return b;
+    };
+    (board.key||[]).forEach(k=>{
+      row.appendChild(mk(k.color, 'key', 'Key: ' + (k.label || '(no label)'), ()=>{ tech.keyId = k.id; tech.color = k.color; }, tech.keyId === k.id));
+    });
+    if((board.key||[]).length){ const sep = document.createElement('span'); sep.className = 'pool-sw-sep'; row.appendChild(sep); }
+    COLORS.forEach(c=>{
+      row.appendChild(mk(c, 'pal', c, ()=>{ tech.keyId = ''; tech.color = c; }, !tech.keyId && c.toLowerCase() === cur));
+    });
+    const ci = document.createElement('input');
+    ci.type = 'color'; ci.value = /^#[0-9a-f]{6}$/i.test(techColor(tech)) ? techColor(tech) : '#888888';
+    ci.title = 'Pick any color';
+    ci.addEventListener('change', ()=>{ tech.keyId = ''; tech.color = ci.value; save(); render(); });
+    row.appendChild(ci);
+    wrap.appendChild(row);
+    return wrap;
+  }
+
+  function makePoolField(labelText, tech, fieldName, placeholder, isEmail){
+    const wrap = document.createElement('div');
+    wrap.className = 'pool-field';
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    wrap.appendChild(label);
+    const input = document.createElement('input');
+    input.type = isEmail ? 'email' : 'text';
+    input.value = tech[fieldName] || '';
+    input.placeholder = placeholder || '';
+    if(isEmail && tech.email && !emailValid(tech.email)) input.classList.add('email-invalid');
+    input.addEventListener('focus', ()=>{ isEditingText = true; });
+    input.addEventListener('blur', ()=>{
+      isEditingText = false;
+      tech[fieldName] = input.value.trim();
+      save(); renderTechPool();
+    });
+    wrap.appendChild(input);
+    return wrap;
+  }
+
+  // Lists the jobs on this week (plus the current one), with "+ Add new job" at the end so
+  // you never have to leave this view to create one.
+  function fillDistrictOptions(sel, currentId, weekId, opts){
+    opts = opts || {};
+    const od = orderedDistricts();
+    if(opts.placeholder){
+      const ph = document.createElement('option');
+      ph.value = ''; ph.textContent = 'Choose job\u2026';
+      if(!currentId) ph.selected = true;
+      sel.appendChild(ph);
+    }
+    if(opts.allowBench !== false && od.bench){
+      const o = document.createElement('option');
+      o.value = 'bench'; o.textContent = 'Bench / Unassigned';
+      if(currentId === 'bench') o.selected = true;
+      sel.appendChild(o);
+    }
+    od.others.filter(d=>d.id === currentId || !weekId || isJobActiveIn(weekId, d.id)).forEach(d=>{
+      const o = document.createElement('option');
+      o.value = d.id; o.textContent = d.label;
+      if(d.id === currentId) o.selected = true;
+      sel.appendChild(o);
+    });
+    if(weekId){
+      const n = document.createElement('option');
+      n.value = '__new__'; n.textContent = '\uff0b Add new job\u2026';
+      sel.appendChild(n);
+    }
+  }
+
+  // Start time, work order and the "scheduled in Field Hub" check-off for one job.
+  function buildJobFields(col, tech, ref, job, kind){
+    const row = document.createElement('div');
+    row.className = kind === 'chip' ? 'chip-fields' : 'job-fields';
+    const stop = (el)=>{ ['mousedown','click'].forEach(ev=>el.addEventListener(ev, e=>e.stopPropagation())); };
+    const time = document.createElement('input');
+    time.type = 'time'; time.value = job.start || ''; time.title = 'Start time';
+    time.className = 'job-time';
+    time.addEventListener('focus', ()=>{ isEditingText = true; });
+    time.addEventListener('blur', ()=>{ isEditingText = false; });
+    time.addEventListener('change', ()=>{ patchJob(col, tech.id, ref, { start: time.value }); save(); render(); });
+    stop(time); row.appendChild(time);
+    const wo = document.createElement('input');
+    wo.type = 'text'; wo.value = job.wo || ''; wo.placeholder = 'WO #'; wo.title = 'Work order number';
+    wo.className = 'job-wo';
+    wo.addEventListener('focus', ()=>{ isEditingText = true; });
+    wo.addEventListener('blur', ()=>{
+      isEditingText = false;
+      if(wo.value.trim() !== (job.wo || '')){ patchJob(col, tech.id, ref, { wo: wo.value.trim() }); save(); }
+    });
+    wo.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') wo.blur(); });
+    stop(wo); row.appendChild(wo);
+    const lab = document.createElement('label');
+    lab.className = kind === 'chip' ? 'chip-done' : 'job-done';
+    lab.title = 'Check once this has been entered in Field Hub';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = !!job.done; cb.className = 'job-done-cb';
+    cb.addEventListener('change', ()=>{ patchJob(col, tech.id, ref, { done: cb.checked }); save(); render(); });
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode('Field Hub'));
+    stop(lab);
+    row.appendChild(lab);
+    return row;
+  }
+
+  function renderChip(tech, col, district, posIdx, cellSize, ref){
+    const isExtra = !!(ref && ref.x);
+    const job = jobOf(col, tech.id, ref) || { districtId: district.id, note:'' };
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (isExtra ? ' extra-job' : '') + (job.done && district.id !== 'bench' ? ' done' : '');
+    chip.style.borderLeftColor = techColor(tech);
+    chip.draggable = !isExtra;
+    if(isExtra){
+      const tag = document.createElement('div');
+      tag.className = 'extra-tag'; tag.textContent = 'ADDITIONAL JOB';
+      chip.appendChild(tag);
+    }
+
+    const hasDayOverride = !isExtra && col.dayIdx != null && !!dayPlacementOf(col.weekId, col.dayIdx, tech.id);
+    if(hasDayOverride) chip.classList.add('day-override');
+
+    chip.addEventListener('dragstart', ()=>{
+      dragTechId = tech.id; dragFromCol = col.key;
+      chip.classList.add('dragging');
+    });
+    chip.addEventListener('dragend', ()=>{
+      chip.classList.remove('dragging');
+      dragTechId = null; dragFromCol = null;
+      tableEl.querySelectorAll('.drop-before').forEach(el=>el.classList.remove('drop-before'));
+    });
+
+    // Dropping on a chip inserts the dragged tech just ahead of it (reorder / insert).
+    chip.addEventListener('dragover', (e)=>{
+      if(!dragTechId || dragFromCol !== col.key || dragTechId === tech.id) return;
+      e.preventDefault(); e.stopPropagation();
+      chip.classList.add('drop-before');
+    });
+    chip.addEventListener('dragleave', ()=>{ chip.classList.remove('drop-before'); });
+    chip.addEventListener('drop', (e)=>{
+      if(!dragTechId || dragFromCol !== col.key || dragTechId === tech.id) return;
+      e.preventDefault(); e.stopPropagation();
+      chip.classList.remove('drop-before');
+      placeTech(col, dragTechId, district.id, tech.id);
+      const flashKey = col.key;
+      dragTechId = null; dragFromCol = null;
+      save(); render();
+      flashCell(flashKey, district.id);
+    });
+
+    const top = document.createElement('div');
+    top.className = 'chip-top';
+
+    if(senLabel(tech)){
+      const sn = document.createElement('span');
+      sn.className = 'chip-sen'; sn.textContent = senLabel(tech); sn.title = 'Seniority ' + senLabel(tech);
+      top.appendChild(sn);
+    }
+    const nameEl = document.createElement('div');
+    nameEl.className = 'chip-name';
+    nameEl.contentEditable = true;
+    nameEl.textContent = tech.name;
+    nameEl.addEventListener('focus', ()=>{ isEditingText = true; });
+    nameEl.addEventListener('blur', ()=>{
+      isEditingText = false;
+      tech.name = nameEl.textContent.trim();
+      save();
+    });
+    top.appendChild(nameEl);
+
+    const profileBtn = document.createElement('button');
+    profileBtn.className = 'chip-profile-btn' + (tech.role||tech.phone||tech.detail ? ' has-detail' : '');
+    profileBtn.textContent = 'i';
+    profileBtn.title = 'View / edit profile';
+    profileBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openProfile(tech.id);
+    });
+    chip.appendChild(profileBtn);
+
+    const rm = document.createElement('button');
+    rm.className = 'chip-x';
+    rm.innerHTML = '&times;';
+    rm.title = isExtra ? 'Remove this additional job' : (district.id==='bench' ? 'Remove from roster' : 'Send back to bench');
+    rm.addEventListener('click', ()=>{
+      if(isExtra){
+        if(!confirm('Remove this additional job for '+(tech.name || 'this tech')+'?')) return;
+        removeExtra(col, ref.x);
+        save(); render();
+      } else if(district.id==='bench'){
+        deleteTechFromRoster(tech.id);
+      } else {
+        if(!confirm('Send '+(tech.name || 'this tech')+' back to the bench for this '+(col.dayIdx == null ? 'week' : 'day')+'?')) return;
+        sendPrimaryToBench(col, tech.id);
+        save(); render();
+      }
+    });
+    top.appendChild(rm);
+    chip.appendChild(top);
+
+    const note = document.createElement('div');
+    note.className = 'chip-note';
+    note.contentEditable = true;
+    note.textContent = job.note || '';
+    note.addEventListener('focus', ()=>{ isEditingText = true; });
+    note.addEventListener('blur', ()=>{
+      isEditingText = false;
+      patchJob(col, tech.id, ref, { note: note.textContent.trim() });
+      save();
+    });
+    chip.appendChild(note);
+
+    if(district.id !== 'bench'){
+      chip.appendChild(buildJobFields(col, tech, ref, job, 'chip'));
+      if(job.done){
+        const tag = document.createElement('div');
+        tag.className = 'fh-tag'; tag.textContent = '\u2713 IN FIELD HUB';
+        chip.appendChild(tag);
+      }
+    }
+
+    const districtSelect = document.createElement('select');
+    districtSelect.className = 'chip-district-select';
+    districtSelect.title = 'Reassign to a different district for this ' + (col.dayIdx == null ? 'week' : 'day');
+    fillDistrictOptions(districtSelect, district.id, col.weekId, { allowBench: !isExtra });
+    districtSelect.addEventListener('mousedown', (e)=>{ e.stopPropagation(); });
+    districtSelect.addEventListener('click', (e)=>{ e.stopPropagation(); });
+    districtSelect.addEventListener('focus', ()=>{ isEditingText = true; });
+    districtSelect.addEventListener('blur', ()=>{ isEditingText = false; });
+    districtSelect.addEventListener('change', ()=>{
+      const newDistrictId = districtSelect.value;
+      isEditingText = false;
+      if(newDistrictId === '__new__'){
+        districtSelect.value = district.id;
+        openJobModal({ weekIds:[col.weekId], onAdded:(did)=>{
+          if(isExtra) patchJob(col, tech.id, ref, { districtId: did }); else placeTech(col, tech.id, did);
+        }});
+        return;
+      }
+      if(newDistrictId === district.id) return;
+      if(isExtra) patchJob(col, tech.id, ref, { districtId: newDistrictId });
+      else if(newDistrictId === 'bench') sendPrimaryToBench(col, tech.id);
+      else placeTech(col, tech.id, newDistrictId);
+      const flashKey = col.key;
+      save(); render();
+      flashCell(flashKey, newDistrictId);
+    });
+    chip.appendChild(districtSelect);
+
+    if(isExtra){
+      /* additional jobs have no week-plan badge */
+    } else if(col.dayIdx == null){
+      const diffs = techDayDiffs(col.weekId, tech.id);
+      if(diffs.length > 0){
+        const badge = document.createElement('div');
+        badge.className = 'chip-badge';
+        badge.textContent = 'Days differ';
+        badge.title = diffs.map(df=>{
+          const d = board.districts.find(x=>x.id===df.districtId);
+          const dayName = ['Mon','Tue','Wed','Thu','Fri'][df.dayIdx];
+          return dayName + ': ' + (df.extra ? '+ ' : '') + (df.districtId==='bench' ? 'Bench' : (d ? d.label : '?'));
+        }).join('\n') + '\n(Switch to Day view to edit)';
+        chip.appendChild(badge);
+      }
+    } else if(hasDayOverride){
+      const reset = document.createElement('button');
+      reset.className = 'chip-reset';
+      reset.textContent = '↺ week plan';
+      reset.title = 'Remove this day-specific change and follow the week plan again';
+      reset.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        clearDayOverride(col, tech.id);
+        save(); render();
+      });
+      chip.appendChild(reset);
+    }
+
+    if(cellSize > 1 && !isExtra){
+      const reorder = document.createElement('div');
+      reorder.className = 'chip-reorder';
+
+      const up = document.createElement('button');
+      up.className = 'chip-move-btn'; up.textContent = '▲'; up.title = 'Move up';
+      up.disabled = posIdx === 0 || (board.techSort||'manual') !== 'manual';
+      if((board.techSort||'manual') !== 'manual') up.title = 'Set tech order to Manual to reorder';
+      up.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        moveTechInCell(col, district.id, tech.id, -1);
+      });
+      reorder.appendChild(up);
+
+      const down = document.createElement('button');
+      down.className = 'chip-move-btn'; down.textContent = '▼'; down.title = 'Move down';
+      down.disabled = posIdx === cellSize - 1 || (board.techSort||'manual') !== 'manual';
+      if((board.techSort||'manual') !== 'manual') down.title = 'Set tech order to Manual to reorder';
+      down.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        moveTechInCell(col, district.id, tech.id, 1);
+      });
+      reorder.appendChild(down);
+
+      chip.appendChild(reorder);
+    }
+
+    return chip;
+  }
+
+  function addWeek(){
+    const w = { id: uid(), date: '' };
+    board.weeks.push(w);
+    board.placements[w.id] = {};
+    board.weekJobs[w.id] = {};          // a brand-new week starts with a clean slate: no jobs listed
+    if(weekFocus !== 'all') setWeekFocus(w.id);
+    save(); render();
+  }
+  function removeJobFromWeek(weekId, districtId){
+    const wp = board.placements[weekId] || {};
+    Object.keys(wp).forEach(tid=>{ if(wp[tid].districtId === districtId) wp[tid] = { districtId:'bench', note:'' }; });
+    const prefix = weekId + ':';
+    Object.keys(board.dayPlacements).forEach(k=>{
+      if(k.indexOf(prefix) !== 0) return;
+      Object.keys(board.dayPlacements[k]).forEach(tid=>{ if(board.dayPlacements[k][tid].districtId === districtId) delete board.dayPlacements[k][tid]; });
+      if(Object.keys(board.dayPlacements[k]).length === 0) delete board.dayPlacements[k];
+    });
+    Object.keys(board.extras).forEach(k=>{
+      if(k.indexOf(prefix) !== 0) return;
+      Object.keys(board.extras[k]).forEach(id=>{ if(board.extras[k][id].districtId === districtId) delete board.extras[k][id]; });
+      if(Object.keys(board.extras[k]).length === 0) delete board.extras[k];
+    });
+    Object.keys(board.cellNotes).filter(k=>k === weekId || k.indexOf(prefix) === 0).forEach(k=>{
+      delete board.cellNotes[k][districtId];
+      if(Object.keys(board.cellNotes[k]).length === 0) delete board.cellNotes[k];
+    });
+    if(board.weekJobs[weekId]) delete board.weekJobs[weekId][districtId];
+  }
+
+  // ---- "Add a job" dialog: type a name; past jobs suggest, new names are created ----
+  let jobModalCtx = null;
+  function openJobModal(ctx){
+    jobModalCtx = ctx;
+    const weekIds = ctx.weekIds;
+    const first = weekIds[0];
+    const dl = document.getElementById('jobLibrary');
+    dl.innerHTML = '';
+    board.districts.filter(d=>d.id !== 'bench' && !isJobActiveIn(first, d.id)).forEach(d=>{
+      const o = document.createElement('option'); o.value = d.label; dl.appendChild(o);
+    });
+    const field = document.getElementById('jobWeekField');
+    const sel = document.getElementById('jobWeekSel');
+    sel.innerHTML = '';
+    if(weekIds.length > 1){
+      weekIds.forEach(wid=>{
+        const w = board.weeks.find(x=>x.id === wid);
+        const o = document.createElement('option'); o.value = wid; o.textContent = w && w.date ? formatWeekLabel(w.date) : 'Undated week'; sel.appendChild(o);
+      });
+      const all = document.createElement('option'); all.value = '*'; all.textContent = 'All weeks shown'; sel.appendChild(all);
+      field.style.display = '';
+    } else {
+      field.style.display = 'none';
+    }
+    document.getElementById('jobName').value = '';
+    document.getElementById('jobOverlay').classList.add('open');
+    isEditingText = true;
+    setTimeout(()=>document.getElementById('jobName').focus(), 30);
+  }
+  function closeJobModal(){
+    document.getElementById('jobOverlay').classList.remove('open');
+    jobModalCtx = null;
+    isEditingText = false;
+  }
+  function submitJobModal(){
+    const ctx = jobModalCtx;
+    if(!ctx) return;
+    const label = document.getElementById('jobName').value.trim();
+    if(!label){ document.getElementById('jobName').focus(); return; }
+    let d = board.districts.find(x=>x.id !== 'bench' && x.label.trim().toLowerCase() === label.toLowerCase());
+    if(!d){ d = { id: uid(), label }; board.districts.push(d); }
+    let targets = ctx.weekIds;
+    if(ctx.weekIds.length > 1){
+      const v = document.getElementById('jobWeekSel').value;
+      targets = v === '*' ? ctx.weekIds : [v];
+    }
+    targets.forEach(wid=>activateJob(wid, d.id));
+    closeJobModal();
+    if(ctx.onAdded) ctx.onAdded(d.id);
+    save(); render();
+  }
+  function openAddJob(cols){
+    openJobModal({ weekIds: Array.from(new Set(cols.map(c=>c.weekId))) });
+  }
+  function addTech(){
+    const colorIdx = board.techs.length % COLORS.length;
+    board.techs.push({ id: uid(), name: '', color: COLORS[colorIdx], role:'', phone:'', email:'', detail:'' });
+    save(); render();
+  }
+
+  // ============ ARCHIVE ============
+  function archiveWeek(weekId){
+    const week = board.weeks.find(w=>w.id===weekId);
+    if(!week) return;
+    reconcileCellOrder(board); // make sure cellOrder is current before snapshotting
+    const weekCol = { weekId, dayIdx:null, key:weekId, week };
+
+    const districtsSnapshot = board.districts.map(d=>{
+      const orderArr = (board.cellOrder[weekId] && board.cellOrder[weekId][d.id]) || [];
+      const techsSnapshot = orderArr.map(tid=>{
+        const t = board.techs.find(x=>x.id===tid);
+        if(!t) return null;
+        const p = getPlacement(weekId, tid);
+        return { techId: t.id, name: t.name, role: t.role, note: p.note||'', start: p.start||'', wo: p.wo||'', done: !!p.done };
+      }).filter(Boolean);
+      return { districtId: d.id, label: d.label, note: getCellNote(weekCol, d.id), techs: techsSnapshot };
+    });
+
+    // day-specific changes and day notes travel with the archived week
+    const dayOverrides = {}, dayNotes = {}, dayExtras = {};
+    const jobIds = Object.keys(board.weekJobs[weekId] || {});
+    for(let i=0; i<DAYS_PER_WEEK; i++){
+      const ex = board.extras[weekId+':'+i];
+      if(ex && Object.keys(ex).length) dayExtras[i] = JSON.parse(JSON.stringify(ex));
+      const o = board.dayPlacements[weekId+':'+i];
+      if(o && Object.keys(o).length) dayOverrides[i] = JSON.parse(JSON.stringify(o));
+      const n = board.cellNotes[weekId+':'+i];
+      if(n && Object.keys(n).length) dayNotes[i] = JSON.parse(JSON.stringify(n));
+    }
+
+    board.archive.push({
+      id: uid(),
+      date: week.date,
+      label: week.date ? formatWeekLabel(week.date) : 'Undated week',
+      archivedAt: new Date().toISOString(),
+      districts: districtsSnapshot,
+      dayOverrides,
+      dayNotes,
+      dayExtras,
+      jobIds
+    });
+
+    purgeWeekKeys(weekId);
+    board.weeks = board.weeks.filter(w=>w.id!==weekId);
+    save(); render();
+  }
+
+  function restoreArchivedWeek(archiveId){
+    const entry = board.archive.find(a=>a.id===archiveId);
+    if(!entry) return;
+
+    const newWeek = { id: uid(), date: entry.date };
+    board.weeks.push(newWeek);
+    board.placements[newWeek.id] = {};
+    board.cellOrder[newWeek.id] = {};
+    board.weekJobs[newWeek.id] = {};
+    (entry.jobIds || []).forEach(did=>{ if(board.districts.some(d=>d.id === did)) board.weekJobs[newWeek.id][did] = true; });
+
+    entry.districts.forEach(distSnap=>{
+      const districtStillExists = board.districts.some(d=>d.id===distSnap.districtId);
+      const targetDistrictId = districtStillExists ? distSnap.districtId : 'bench';
+      distSnap.techs.forEach(techSnap=>{
+        const stillOnRoster = board.techs.some(t=>t.id===techSnap.techId);
+        if(!stillOnRoster) return; // person no longer on the roster; skip restoring them
+        board.placements[newWeek.id][techSnap.techId] = mkPlacement(targetDistrictId, techSnap.note||'', techSnap);
+      });
+      if(distSnap.note && districtStillExists && targetDistrictId !== 'bench'){
+        setCellNote({ weekId:newWeek.id, dayIdx:null, key:newWeek.id }, targetDistrictId, distSnap.note);
+      }
+    });
+    Object.keys(entry.dayOverrides || {}).forEach(i=>{
+      const map = {};
+      Object.keys(entry.dayOverrides[i]).forEach(tid=>{
+        if(!board.techs.some(t=>t.id===tid)) return;
+        const o = entry.dayOverrides[i][tid];
+        map[tid] = mkPlacement(board.districts.some(d=>d.id===o.districtId) ? o.districtId : 'bench', o.note||'', o);
+      });
+      if(Object.keys(map).length) board.dayPlacements[newWeek.id+':'+i] = map;
+    });
+    Object.keys(entry.dayExtras || {}).forEach(i=>{
+      const map = {};
+      Object.keys(entry.dayExtras[i]).forEach(xid=>{
+        const x = entry.dayExtras[i][xid];
+        if(!board.techs.some(t=>t.id === x.techId)) return;
+        if(x.districtId && !board.districts.some(d=>d.id === x.districtId)) return;
+        map[xid] = x;
+      });
+      if(Object.keys(map).length) board.extras[newWeek.id+':'+i] = map;
+    });
+    Object.keys(entry.dayNotes || {}).forEach(i=>{
+      Object.keys(entry.dayNotes[i]).forEach(did=>{
+        if(board.districts.some(d=>d.id===did)) setCellNote({ weekId:newWeek.id, dayIdx:+i, key:newWeek.id+':'+i }, did, entry.dayNotes[i][did]);
+      });
+    });
+
+    board.archive = board.archive.filter(a=>a.id!==archiveId);
+    save(); render(); renderArchiveList();
+  }
+
+  function deleteArchivedForever(archiveId){
+    const entry = board.archive.find(a=>a.id===archiveId);
+    if(!entry) return;
+    if(!confirm('Permanently delete the archived "'+entry.label+'"? This cannot be undone.')) return;
+    board.archive = board.archive.filter(a=>a.id!==archiveId);
+    save(); renderArchiveList();
+  }
+
+  function openArchive(){
+    document.getElementById('archiveOverlay').classList.add('open');
+    renderArchiveList();
+  }
+  function closeArchive(){
+    document.getElementById('archiveOverlay').classList.remove('open');
+  }
+  function renderArchiveList(){
+    const listEl = document.getElementById('archiveList');
+    listEl.innerHTML = '';
+    if(board.archive.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'archive-empty';
+      empty.textContent = 'No archived weeks yet. Archive a week from its \u00d7 button on the main board.';
+      listEl.appendChild(empty);
+      return;
+    }
+    // most recently archived first
+    const sorted = [...board.archive].sort((a,b)=> (b.archivedAt||'').localeCompare(a.archivedAt||''));
+    sorted.forEach(entry=>{
+      const card = document.createElement('div');
+      card.className = 'archive-entry';
+
+      const top = document.createElement('div');
+      top.className = 'archive-entry-top';
+      const title = document.createElement('div');
+      title.className = 'archive-entry-title';
+      title.textContent = entry.label;
+      top.appendChild(title);
+      const sub = document.createElement('div');
+      sub.className = 'archive-entry-sub';
+      const totalTechs = entry.districts.reduce((sum,d)=>sum+d.techs.length,0);
+      sub.textContent = totalTechs + (totalTechs===1 ? ' assignment' : ' assignments');
+      top.appendChild(sub);
+      card.appendChild(top);
+
+      const breakdown = document.createElement('div');
+      breakdown.className = 'archive-breakdown';
+      const activeDistricts = entry.districts.filter(d=>d.techs.length>0);
+      if(activeDistricts.length===0){
+        breakdown.textContent = 'Nobody was assigned this week.';
+      } else {
+        activeDistricts.forEach(d=>{
+          const line = document.createElement('div');
+          const names = d.techs.map(t=>t.name||'(unnamed)').join(', ');
+          const strong = document.createElement('strong');
+          strong.textContent = d.label + ':';
+          line.appendChild(strong);
+          line.appendChild(document.createTextNode(' ' + names));
+          breakdown.appendChild(line);
+        });
+      }
+      card.appendChild(breakdown);
+
+      const actions = document.createElement('div');
+      actions.className = 'archive-actions';
+      const restoreBtn = document.createElement('button');
+      restoreBtn.className = 'btn primary';
+      restoreBtn.textContent = 'Restore to board';
+      restoreBtn.addEventListener('click', ()=>restoreArchivedWeek(entry.id));
+      actions.appendChild(restoreBtn);
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn';
+      delBtn.textContent = 'Delete permanently';
+      delBtn.addEventListener('click', ()=>deleteArchivedForever(entry.id));
+      actions.appendChild(delBtn);
+      card.appendChild(actions);
+
+      listEl.appendChild(card);
+    });
+  }
+
+  let activeProfileTechId = null;
+
+  function refreshProfileEmailBtn(tech){
+    const wrap = document.getElementById('profileEmailBtnWrap');
+    wrap.innerHTML = '';
+    if(emailValid(tech.email)){
+      const a = document.createElement('a');
+      a.className = 'pool-email-btn';
+      a.href = 'mailto:' + tech.email;
+      a.textContent = 'Email ' + (tech.name || 'this tech');
+      wrap.appendChild(a);
+    } else if(tech.email){
+      const span = document.createElement('span');
+      span.className = 'pool-email-btn-disabled';
+      span.textContent = 'Enter a valid email to enable';
+      wrap.appendChild(span);
+    }
+  }
+
+  function openProfile(techId){
+    const tech = board.techs.find(t=>t.id===techId);
+    if(!tech) return;
+    activeProfileTechId = techId;
+    document.getElementById('profileName').value = tech.name || '';
+    document.getElementById('profileRole').value = tech.role || '';
+    document.getElementById('profilePhone').value = tech.phone || '';
+    document.getElementById('profileEmail').value = tech.email || '';
+    document.getElementById('profileDetail').value = tech.detail || '';
+    refreshProfileEmailBtn(tech);
+    document.getElementById('profileOverlay').classList.add('open');
+    isEditingText = true;
+  }
+
+  function closeProfile(){
+    document.getElementById('profileOverlay').classList.remove('open');
+    activeProfileTechId = null;
+    isEditingText = false;
+    save(); render();
+  }
+
+  function updateProfileField(field, value){
+    if(!activeProfileTechId) return;
+    const tech = board.techs.find(t=>t.id===activeProfileTechId);
+    if(tech){
+      tech[field] = value;
+      if(field==='email' || field==='name') refreshProfileEmailBtn(tech);
+    }
+  }
+
+  function esc(s){
+    return String(s==null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function printCellHTML(col, districtId){
+    const order = orderObjFor(col)[districtId] || [];
+    const techs = sortTechList(order.map(id=>board.techs.find(t=>t.id===id)).filter(Boolean));
+    let html = techs.map(t=>{
+      const p = effPlacement(col, t.id);
+      return '<div class="p-tech" style="border-left-color:'+esc(techColor(t))+'"><span class="p-name">'+(senLabel(t) ? esc(senLabel(t))+' ' : '')+esc(t.name || '(unnamed)')+'</span>'
+        + (t.role ? ' <span class="p-role">'+esc(t.role)+'</span>' : '')
+        + (jobMeta(p) ? '<div class="p-job">'+(p.done ? '<b>\u2713</b> ' : '')+esc(jobMeta(p))+'</div>' : '')
+        + (p.note ? '<div class="p-note">'+esc(p.note)+'</div>' : '')
+        + '</div>';
+    }).join('');
+    html += extraList(col).filter(x=>x.districtId === districtId).map(x=>{
+      const t = board.techs.find(y=>y.id === x.techId);
+      return '<div class="p-tech" style="border-left-color:'+esc(techColor(t))+'"><span class="p-name">'+esc(t.name || '(unnamed)')+'</span>'
+        + '<div class="p-job">'+(x.done ? '<b>\u2713</b> ' : '')+'extra job'+(jobMeta(x) ? ' \u00b7 '+esc(jobMeta(x)) : '')+'</div>'
+        + (x.note ? '<div class="p-note">'+esc(x.note)+'</div>' : '')
+        + '</div>';
+    }).join('');
+    const cn = getCellNote(col, districtId);
+    if(cn) html += '<div class="p-cellnote">'+esc(cn)+'</div>';
+    return html;
+  }
+
+  function printBenchHTML(col){
+    const order = orderObjFor(col)['bench'] || [];
+    const items = sortTechList(order.map(id=>board.techs.find(t=>t.id===id)).filter(Boolean)).map(t=>{
+      const p = effPlacement(col, t.id);
+      return '<div class="p-bench-item">'+(senLabel(t) ? esc(senLabel(t))+' ' : '')+esc(t.name || '(unnamed)')+(p.note ? ' <span class="p-note">('+esc(p.note)+')</span>' : '')+'</div>';
+    }).join('');
+    return items ? '<div class="p-bench-list">'+items+'</div>' : '';
+  }
+
+  function buildPrintPage(pageCols){
+    const first = pageCols[0], last = pageCols[pageCols.length-1];
+    const dayMode = first.dayIdx != null;
+    let title, sub;
+    if(dayMode){
+      title = first.week.date ? formatWeekLabel(first.week.date) : 'Undated week';
+      sub = first.week.date ? colLabel(first) + ' – ' + colLabel(last) : 'Mon – Fri';
+    } else {
+      title = 'Weekly crew schedule';
+      sub = pageCols.length === 1 ? colLabel(first) : colLabel(first) + ' – ' + colLabel(last);
+    }
+
+    let rows = '';
+    const techLayout = layoutMode === 'tech';
+    if(techLayout){
+      orderedTechs().forEach(t=>{
+        rows += '<tr><td class="p-techname" style="border-left-color:'+esc(techColor(t))+'">'+(senLabel(t) ? esc(senLabel(t))+' ' : '')+esc(t.name || '(unnamed)')
+          + (t.role ? '<span class="p-role">'+esc(t.role)+'</span>' : '') + '</td>'
+          + pageCols.map(c=>{
+              const jobs = techJobs(c, t.id).filter(j=>j.job.districtId && j.job.districtId !== 'bench');
+              if(jobs.length === 0){ const p0 = effPlacement(c, t.id); return '<td class="p-unassigned">Unassigned'+(p0.note ? ' <span class="p-note">('+esc(p0.note)+')</span>' : '')+'</td>'; }
+              return '<td>' + jobs.map(({ job })=>{
+                const d = board.districts.find(x=>x.id===job.districtId);
+                return '<div><span class="p-name">'+esc(d ? d.label : '?')+'</span>'
+                  + (jobMeta(job) ? '<div class="p-job">'+(job.done ? '<b>\u2713</b> ' : '')+esc(jobMeta(job))+'</div>' : '')
+                  + (job.note ? '<div class="p-note">'+esc(job.note)+'</div>' : '') + '</div>';
+              }).join('') + '</td>';
+            }).join('') + '</tr>';
+      });
+    } else {
+      const od = orderedDistricts();
+      od.others.forEach(d=>{
+        const cells = pageCols.map(c=>printCellHTML(c, d.id));
+        if(cells.every(h=>!h)) return;   // nothing scheduled in this district on this page
+        rows += '<tr><td class="p-dist">'+esc(d.label)+'</td>' + cells.map(h=>'<td>'+h+'</td>').join('') + '</tr>';
+      });
+      const benchCells = pageCols.map(c=>printBenchHTML(c));
+      if(benchCells.some(h=>h)){
+        rows += '<tr class="p-bench"><td class="p-dist">Bench / Unassigned</td>' + benchCells.map(h=>'<td>'+h+'</td>').join('') + '</tr>';
+      }
+    }
+    if(!rows){
+      rows = '<tr><td class="p-dist">—</td><td colspan="'+pageCols.length+'">Nobody is scheduled yet.</td></tr>';
+    }
+
+    const head = '<th class="p-corner">'+(techLayout ? 'Tech' : 'District')+'</th>' + pageCols.map(c=>'<th>'+esc(colLabel(c))+'<span class="p-bc">'+benchCount(c)+' unassigned</span></th>').join('');
+    const legend = (board.key||[]).length
+      ? '<div class="p-legend">' + board.key.map(k=>'<span><span class="sw" style="background:'+esc(k.color)+'"></span>'+esc(k.label || '')+'</span>').join('') + '</div>'
+      : '';
+    const printed = new Date().toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' });
+    return '<div class="p-page">'
+      + '<div class="p-head"><div><div class="p-eyebrow">NCD COMMUNICATIONS · FIELD CREW BOARD</div><h1>'+esc(title)+'</h1></div><div class="p-sub">'+esc(sub)+'</div></div>'
+      + legend
+      + '<table class="p-grid"><thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody></table>'
+      + '<div class="p-foot"><span>NCD Internal</span><span>Printed '+esc(printed)+'</span></div>'
+      + '</div>';
+  }
+
+  // "Export PDF": builds a print-ready crew board and opens the browser's print
+  // dialog, where "Save as PDF" is the destination. Day view prints one page per week.
+  function exportPDF(){
+    if(board.techs.length === 0){ alert('No techs on the board yet.'); return; }
+    if(board.weeks.length === 0){ alert('Add a week first.'); return; }
+    reconcileAll();
+    const cols = getColumns();
+    const pages = [];
+    if(viewMode === 'day'){
+      shownWeeks().forEach(w=>{ pages.push(cols.filter(c=>c.weekId === w.id)); });
+    } else {
+      for(let i=0; i<cols.length; i+=5) pages.push(cols.slice(i, i+5));
+    }
+    document.getElementById('printRoot').innerHTML = pages.map(buildPrintPage).join('');
+    document.body.classList.add('printing');
+    const done = ()=>{
+      document.body.classList.remove('printing');
+      window.removeEventListener('afterprint', done);
+    };
+    window.addEventListener('afterprint', done);
+    setTimeout(()=>window.print(), 80);
+  }
+
+  function exportBoard(){
+    try{
+      const rows = [["Week", "Job / School", "Tech", "Role", "Note", "Detail", "Day", "Job note", "Start time", "Work order", "In Field Hub"]];
+      const meta = (o)=>[fmtTime(o.start)||'', o.wo||'', o.done ? 'Yes' : ''];
+      board.weeks.forEach(week=>{
+        const weekLabel = week.date ? formatWeekLabel(week.date) : '(no date set)';
+        const wcol = { weekId:week.id, dayIdx:null, key:week.id, week };
+        board.districts.forEach(district=>{
+          board.techs.forEach(tech=>{
+            const p = getPlacement(week.id, tech.id);
+            if(p.districtId === district.id){
+              rows.push([weekLabel, district.label, tech.name, tech.role||'', p.note||'', tech.detail||'', '', getCellNote(wcol, district.id)].concat(meta(p)));
+            }
+          });
+        });
+        // day-specific changes and additional jobs, one row per tech per job per day
+        for(let i=0; i<DAYS_PER_WEEK; i++){
+          const dcol = { weekId:week.id, dayIdx:i, key:week.id+':'+i, week };
+          const o = board.dayPlacements[dcol.key] || {};
+          Object.keys(o).forEach(tid=>{
+            const tech = board.techs.find(t=>t.id===tid);
+            const district = board.districts.find(d=>d.id===o[tid].districtId);
+            if(!tech || !district) return;
+            rows.push([weekLabel, district.label, tech.name, tech.role||'', o[tid].note||'', tech.detail||'', colLabel(dcol), getCellNote(dcol, district.id)].concat(meta(o[tid])));
+          });
+          extraList(dcol).forEach(x=>{
+            const tech = board.techs.find(t=>t.id===x.techId);
+            const district = board.districts.find(d=>d.id===x.districtId);
+            if(!tech || !district) return;
+            rows.push([weekLabel, district.label, tech.name, tech.role||'', x.note||'', tech.detail||'', colLabel(dcol), getCellNote(dcol, district.id)].concat(meta(x)));
+          });
+        }
+      });
+      if(rows.length===1){ alert('No techs on the board yet.'); return; }
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{wch:22},{wch:22},{wch:24},{wch:20},{wch:30},{wch:34},{wch:14},{wch:30},{wch:11},{wch:14},{wch:12}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Crew Board");
+      const stamp = new Date().toISOString().slice(0,10);
+      XLSX.writeFile(wb, "crew-board-" + stamp + ".xlsx");
+    }catch(e){
+      console.error("Export error:", e);
+      alert("Export failed — try again in a moment.");
+    }
+  }
+
+  document.getElementById('addTechBtn').addEventListener('click', addTech);
+  document.getElementById('tabBoardBtn').addEventListener('click', ()=>switchTab('board'));
+  document.getElementById('tabPoolBtn').addEventListener('click', ()=>switchTab('techPool'));
+  document.getElementById('poolSearch').addEventListener('input', renderTechPool);
+  document.getElementById('poolSearch').addEventListener('focus', ()=>{ isEditingText = true; });
+  document.getElementById('poolSearch').addEventListener('blur', ()=>{ isEditingText = false; });
+  document.getElementById('addWeekBtn').addEventListener('click', addWeek);
+  document.getElementById('archiveBtn').addEventListener('click', openArchive);
+  document.getElementById('historyBtn').addEventListener('click', openHistory);
+  document.getElementById('historyCloseBtn').addEventListener('click', closeHistory);
+  document.getElementById('historyOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'historyOverlay') closeHistory();
+  });
+  document.getElementById('historySaveBtn').addEventListener('click', saveNamedVersion);
+  document.getElementById('historyName').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ e.preventDefault(); saveNamedVersion(); }
+  });
+  document.getElementById('previewBackBtn').addEventListener('click', ()=>leavePreview());
+  document.getElementById('previewRestoreBtn').addEventListener('click', ()=>{
+    if(!previewing) return;
+    const m = previewing.meta;
+    restoreVersion(m.id, m.label ? '"' + m.label + '"' : fmtWhen(m.ts));
+  });
+  window.addEventListener('beforeunload', (e)=>{
+    if(unsavedLocal){ e.preventDefault(); e.returnValue = ''; }
+  });
+  document.getElementById('archiveCloseBtn').addEventListener('click', closeArchive);
+  document.getElementById('archiveOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'archiveOverlay') closeArchive();
+  });
+  document.getElementById('exportBtn').addEventListener('click', exportPDF);
+  document.getElementById('exportXlsBtn').addEventListener('click', exportBoard);
+  document.getElementById('weekPrevBtn').addEventListener('click', ()=>stepWeek(-1));
+  document.getElementById('weekNextBtn').addEventListener('click', ()=>stepWeek(1));
+  document.getElementById('weekPickSel').addEventListener('change', (e)=>{ setWeekFocus(e.target.value); renderKeepScroll(); });
+  document.getElementById('jobCancelBtn').addEventListener('click', closeJobModal);
+  document.getElementById('jobAddBtn').addEventListener('click', submitJobModal);
+  document.getElementById('jobName').addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); submitJobModal(); } });
+  document.getElementById('jobOverlay').addEventListener('click', (e)=>{ if(e.target.id === 'jobOverlay') closeJobModal(); });
+  document.getElementById('viewWeekBtn').addEventListener('click', ()=>setViewMode('week'));
+  document.getElementById('viewDayBtn').addEventListener('click', ()=>setViewMode('day'));
+  document.getElementById('layoutDistrictBtn').addEventListener('click', ()=>setLayoutMode('district'));
+  document.getElementById('layoutTechBtn').addEventListener('click', ()=>setLayoutMode('tech'));
+  document.getElementById('refreshBtn').addEventListener('click', ()=>refreshFromShared(false));
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    if(confirm('Reset the board back to the sample schedule? This clears the board for everyone using this link.')){
+      board = ensureTechFields(seedData());
+      save({ force: true }); render();
+    }
+  });
+
+  document.getElementById('profileName').addEventListener('input', (e)=>updateProfileField('name', e.target.value));
+  document.getElementById('profileRole').addEventListener('input', (e)=>updateProfileField('role', e.target.value));
+  document.getElementById('profilePhone').addEventListener('input', (e)=>updateProfileField('phone', e.target.value));
+  document.getElementById('profileEmail').addEventListener('input', (e)=>updateProfileField('email', e.target.value));
+  document.getElementById('profileDetail').addEventListener('input', (e)=>updateProfileField('detail', e.target.value));
+  document.getElementById('profileCloseBtn').addEventListener('click', closeProfile);
+  document.getElementById('profileOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'profileOverlay') closeProfile();
+  });
+
+  (async function init(){
+    await load();
+    updateViewButtons();
+    render();
+    if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>{ if(viewMode==='day' && activeTab==='board') fixDayHeaderOffset(); });
+    window.addEventListener('resize', ()=>{ if(viewMode==='day' && activeTab==='board') fixDayHeaderOffset(); });
+    startLiveUpdates();
+    renderStatus();
+  })();
+
+})();
+</script>
+</body>
+</html>
