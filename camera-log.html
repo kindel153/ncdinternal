@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Camera Check Log — NCD Internal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --board-bg:#EDEAE2; --board-line:#D9D4C7; --ink:#22262B; --ink-soft:#5A5F66;
+    --header-bg:#20242B; --header-text:#F4F1E8; --card-bg:#FFFDF8; --accent:#B5563C;
+    --ok:#DDF5E2; --ok-line:#7DBE8C; --bad:#FBE3DE; --bad-line:#D9806C; --warn:#FFF1CC; --warn-line:#E0B84A; --blue:#DCE9FA;
+    --shadow:3px 3px 0 rgba(34,38,43,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(var(--board-line) 1px, transparent 1px) 0 0/22px 22px, var(--board-bg);
+    font-family:'IBM Plex Sans',system-ui,sans-serif; color:var(--ink); min-height:100vh; font-size:14px;
+  }
+  header.top{ background:var(--header-bg); color:var(--header-text); padding:18px 24px 14px; border-bottom:5px solid var(--accent); }
+  .top-inner{ max-width:1250px; margin:0 auto; display:flex; flex-wrap:wrap; gap:14px 24px; align-items:flex-end; justify-content:space-between; }
+  .back{ font-size:12px; color:#C7C3B7; text-decoration:none; font-family:'Oswald',sans-serif; letter-spacing:.5px; }
+  .back:hover{ color:#fff; }
+  header.top h1{ font-family:'Oswald',sans-serif; font-weight:700; font-size:28px; margin:2px 0 0; letter-spacing:.3px; }
+  .top-right{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:12px; color:#C7C3B7; }
+  .who{ display:flex; align-items:center; gap:6px; }
+  .who input{ background:#2C313A; border:1px solid #4A515C; color:#fff; padding:6px 8px; font:inherit; font-size:13px; width:150px; border-radius:2px; }
+  #syncState{ display:flex; align-items:center; gap:6px; }
+  #syncState i{ width:8px; height:8px; border-radius:50%; background:#6DBE7D; display:inline-block; }
+  #syncState.off i{ background:#E0A63A; } #syncState.err i{ background:#E0574A; }
+  main{ max-width:1250px; margin:0 auto; padding:16px 24px 60px; }
+  .tabs{ display:flex; gap:4px; border-bottom:2px solid var(--ink); margin-bottom:16px; flex-wrap:wrap; }
+  .tab{ font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; letter-spacing:.3px; padding:9px 16px; background:transparent; border:0; border-bottom:4px solid transparent; margin-bottom:-2px; cursor:pointer; color:var(--ink-soft); }
+  .tab:hover{ color:var(--ink); }
+  .tab.active{ color:var(--ink); border-bottom-color:var(--accent); }
+  .badge{ display:inline-block; min-width:18px; padding:1px 6px; margin-left:6px; border-radius:9px; background:var(--accent); color:#fff; font-size:11px; font-family:'IBM Plex Sans'; font-weight:600; text-align:center; }
+  .badge.zero{ display:none; }
+  .btn{ font-family:'Oswald',sans-serif; font-weight:600; font-size:12.5px; letter-spacing:.3px; padding:7px 12px; background:var(--card-bg); color:var(--ink); border:1.5px solid var(--ink); box-shadow:2px 2px 0 rgba(34,38,43,.2); cursor:pointer; border-radius:0; }
+  .btn:hover{ transform:translate(-1px,-1px); box-shadow:3px 3px 0 rgba(34,38,43,.25); }
+  .btn.primary{ background:var(--ink); color:#fff; }
+  .btn.accent{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.small{ padding:4px 8px; font-size:11.5px; box-shadow:none; }
+  .btn.danger{ color:#B3261E; border-color:#B3261E; }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
+  input,select,textarea{ font-family:'IBM Plex Sans',sans-serif; font-size:13px; color:var(--ink); border:1.3px solid var(--board-line); background:#fff; padding:6px 8px; border-radius:2px; outline:none; }
+  input:focus,select:focus,textarea:focus{ border-color:var(--accent); }
+  .card{ background:var(--card-bg); border:1.5px solid var(--ink); box-shadow:var(--shadow); padding:14px 16px; }
+  .bar{ display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin-bottom:14px; }
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; }
+  .chip{ padding:5px 10px; border:1.3px solid var(--ink); background:var(--card-bg); font-size:12.5px; font-weight:600; }
+  .chip.ok{ background:var(--ok); border-color:var(--ok-line); } .chip.bad{ background:var(--bad); border-color:var(--bad-line); } .chip.warn{ background:var(--warn); border-color:var(--warn-line); }
+  .muted{ color:var(--ink-soft); }
+  h2.sec{ font-family:'Oswald',sans-serif; font-size:16px; margin:20px 0 8px; letter-spacing:.3px; }
+
+  /* daily table */
+  .tbl-wrap{ overflow:auto; border:1.5px solid var(--ink); background:var(--card-bg); box-shadow:var(--shadow); }
+  table.grid{ border-collapse:collapse; width:100%; min-width:820px; }
+  table.grid th{ background:var(--header-bg); color:var(--header-text); font-family:'Oswald',sans-serif; font-weight:600; font-size:12px; letter-spacing:.5px; text-align:left; padding:8px 10px; position:sticky; top:0; z-index:2; }
+  table.grid td{ border-top:1px solid var(--board-line); padding:5px 8px; vertical-align:top; }
+  tr.client-row td{ background:#E7E2D4; border-top:2px solid var(--ink); font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; padding:7px 10px; vertical-align:middle; }
+  tr.client-row .cr-meta{ font-family:'IBM Plex Sans'; font-weight:500; font-size:12px; color:var(--ink-soft); margin-left:10px; }
+  tr.site-row.ok td{ background:var(--ok); }
+  tr.site-row.bad td{ background:var(--bad); }
+  td.loc{ font-weight:600; width:24%; padding-top:11px; }
+  td.dn input{ width:62px; text-align:center; font-weight:600; font-size:15px; }
+  td.tm input{ width:112px; }
+  td.nt textarea{ width:100%; min-height:32px; resize:vertical; line-height:1.35; }
+  td.ac{ width:190px; font-size:12px; }
+  .pill{ display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; border:1px solid var(--ink); background:#fff; white-space:nowrap; }
+  .pill.reported{ background:var(--warn); border-color:var(--warn-line); } .pill.scheduled{ background:var(--blue); border-color:#7FA6D9; }
+  .pill.completed{ background:var(--ok); border-color:var(--ok-line); } .pill.billed{ background:#E6E0F4; border-color:#9A8CC9; } .pill.closed{ background:#EEE; border-color:#AAA; }
+  .pill.new{ background:var(--accent); color:#fff; border-color:var(--accent); } .pill.read{ background:var(--warn); border-color:var(--warn-line); } .pill.done{ background:var(--ok); border-color:var(--ok-line); }
+  a.link{ color:var(--accent); font-weight:600; cursor:pointer; text-decoration:underline; }
+  .banner{ padding:10px 14px; border:1.5px solid var(--ok-line); background:var(--ok); margin-bottom:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .banner.warn{ background:var(--warn); border-color:var(--warn-line); }
+  .two{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media(max-width:800px){ .two{ grid-template-columns:1fr; } main{ padding:12px; } }
+
+  /* workflow */
+  .stages{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .stage{ padding:8px 12px; border:1.5px solid var(--ink); background:var(--card-bg); cursor:pointer; font-family:'Oswald',sans-serif; font-weight:600; font-size:13px; }
+  .stage b{ margin-left:6px; font-family:'IBM Plex Sans'; }
+  .stage.active{ background:var(--ink); color:#fff; }
+  .cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
+  .tk{ background:var(--card-bg); border:1.5px solid var(--ink); border-left-width:7px; box-shadow:var(--shadow); padding:12px 14px; cursor:pointer; }
+  .tk.needs{ border-left-color:var(--bad-line); cursor:default; } .tk.reported{ border-left-color:var(--warn-line); } .tk.scheduled{ border-left-color:#7FA6D9; }
+  .tk.completed{ border-left-color:var(--ok-line); } .tk.billed{ border-left-color:#9A8CC9; } .tk.closed{ border-left-color:#AAA; }
+  .tk:hover{ box-shadow:4px 4px 0 rgba(34,38,43,.24); }
+  .tk h3{ margin:0 0 4px; font-family:'Oswald',sans-serif; font-size:16px; }
+  .tk .meta{ font-size:12px; color:var(--ink-soft); margin:3px 0; }
+  .tk .cams{ font-size:12.5px; margin:6px 0; line-height:1.45; }
+  .tk .row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; align-items:center; }
+  .hint-ok{ color:#2C7A3E; font-weight:600; font-size:12px; } .hint-bad{ color:#B3261E; font-weight:600; font-size:12px; }
+
+  /* modal */
+  .overlay{ position:fixed; inset:0; background:rgba(20,22,26,.55); display:none; align-items:flex-start; justify-content:center; z-index:50; padding:24px 14px; overflow:auto; }
+  .overlay.open{ display:flex; }
+  .modal{ background:var(--card-bg); border:1.5px solid var(--ink); box-shadow:5px 5px 0 rgba(34,38,43,.25); width:100%; max-width:760px; padding:18px 22px 16px; }
+  .modal h2{ font-family:'Oswald',sans-serif; margin:0 0 4px; font-size:21px; }
+  .fld{ margin-bottom:10px; } .fld label{ display:block; font-family:'Oswald',sans-serif; font-weight:600; font-size:11px; letter-spacing:.6px; color:var(--ink-soft); margin-bottom:3px; text-transform:uppercase; }
+  .fld input,.fld select,.fld textarea{ width:100%; }
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; } .grid2{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  @media(max-width:700px){ .grid3,.grid2{ grid-template-columns:1fr; } }
+  .secbox{ border:1.3px solid var(--board-line); padding:10px 12px; margin:10px 0; background:#fff; }
+  .secbox h4{ margin:0 0 8px; font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:.5px; text-transform:uppercase; color:var(--ink-soft); }
+  .total{ font-family:'Oswald',sans-serif; font-size:18px; }
+  .log{ font-size:12px; color:var(--ink-soft); max-height:110px; overflow:auto; margin-top:6px; }
+  .err{ color:#B3261E; font-weight:600; font-size:12.5px; min-height:16px; margin:6px 0; }
+  .actions{ display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; margin-top:12px; align-items:center; }
+  .actions .spacer{ flex:1; }
+
+  /* messages */
+  .msg{ background:var(--card-bg); border:1.5px solid var(--ink); border-left-width:7px; border-left-color:var(--board-line); padding:10px 14px; margin-bottom:10px; box-shadow:var(--shadow); }
+  .msg.new{ border-left-color:var(--accent); } .msg.read{ border-left-color:var(--warn-line); } .msg.done{ opacity:.7; }
+  .msg .mh{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); }
+  .msg .mt{ margin:6px 0; white-space:pre-wrap; font-size:14px; }
+  .reply{ margin:6px 0 0 14px; padding:6px 10px; border-left:3px solid var(--board-line); font-size:13px; white-space:pre-wrap; }
+  .cat{ font-weight:600; color:var(--ink); }
+
+  /* setup */
+  .cl-block{ margin-bottom:14px; } .cl-head{ display:flex; gap:8px; align-items:center; margin-bottom:6px; }
+  .cl-head input{ font-family:'Oswald',sans-serif; font-weight:600; font-size:15px; width:280px; }
+  .loc-row{ display:flex; gap:8px; align-items:center; margin:3px 0 3px 18px; } .loc-row input.nm{ width:300px; } .loc-row.off input.nm{ opacity:.5; }
+  .toast{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; font-size:13px; z-index:99; display:none; }
+  .empty{ padding:30px; text-align:center; color:var(--ink-soft); border:1.5px dashed var(--board-line); background:rgba(255,253,248,.5); }
+
+  /* billing */
+  table.bill{ border-collapse:collapse; width:100%; min-width:900px; font-size:13px; }
+  table.bill th{ background:var(--header-bg); color:var(--header-text); font-family:'Oswald',sans-serif; font-weight:600; font-size:12px; text-align:left; padding:7px 9px; }
+  table.bill td{ border-top:1px solid var(--board-line); padding:6px 9px; vertical-align:top; }
+  table.bill td.n, table.bill th.n{ text-align:right; white-space:nowrap; }
+  table.bill tr.cl td{ background:#E7E2D4; font-family:'Oswald',sans-serif; font-weight:600; border-top:2px solid var(--ink); }
+  .miss{ color:#B3261E; font-weight:600; }
+
+  #printRoot{ display:none; }
+  @media print{
+    @page{ size:letter landscape; margin:.5in; }
+    body.printing{ background:#fff !important; }
+    body.printing > *:not(#printRoot){ display:none !important; }
+    body.printing #printRoot{ display:block !important; }
+  }
+  .pr{ font-family:'IBM Plex Sans',Arial,sans-serif; color:#111; font-size:11px; }
+  .pr h1{ font-family:'Oswald',Arial,sans-serif; font-size:22px; margin:0 0 2px; } .pr .sub{ color:#555; margin-bottom:12px; }
+  .pr table{ width:100%; border-collapse:collapse; margin-bottom:10px; } .pr th{ background:#20242B; color:#fff; text-align:left; padding:5px 7px; font-size:10.5px; }
+  .pr td{ border-bottom:1px solid #ccc; padding:5px 7px; vertical-align:top; } .pr td.n,.pr th.n{ text-align:right; white-space:nowrap; }
+  .pr .pg{ page-break-before:always; } .pr .pg:first-child{ page-break-before:auto; }
+  .pr tr.sub td{ font-weight:700; border-top:2px solid #111; background:#f1efe8; } .pr tr{ page-break-inside:avoid; }
+  .pr h2{ font-family:'Oswald',Arial,sans-serif; font-size:16px; margin:0 0 6px; } .pr .foot{ margin-top:14px; color:#555; font-size:10.5px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <div>
+      <a class="back" href="index.html">&larr; NCD INTERNAL</a>
+      <h1>Daily Camera Check Log</h1>
+    </div>
+    <div class="top-right">
+      <div class="who"><label for="whoName">Your name</label><input id="whoName" type="text" placeholder="e.g. Hannan" maxlength="40" autocomplete="off"></div>
+      <div id="syncState"><i></i><span id="syncText">Loading&hellip;</span></div>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="daily">Daily Check</button>
+    <button class="tab" data-tab="messages">Messages<span class="badge zero" id="bMsg">0</span></button>
+    <button class="tab" data-tab="workflow">Service Workflow<span class="badge zero" id="bWf">0</span></button>
+    <button class="tab" data-tab="billing">Billing<span class="badge zero" id="bBill">0</span></button>
+    <button class="tab" data-tab="setup">Setup</button>
+  </div>
+  <div id="view"></div>
+</main>
+<div class="overlay" id="ovl"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+<datalist id="techList"></datalist>
+<div id="printRoot"></div>
+<script>
+(function(){
+'use strict';
+const SEED = {"sites":{"s01":{"id":"s01","client":"Seaford","name":"Harbor School","order":1,"active":true},"s02":{"id":"s02","client":"Seaford","name":"Middle School","order":2,"active":true},"s03":{"id":"s03","client":"Seaford","name":"Manor School","order":3,"active":true},"s04":{"id":"s04","client":"Seaford","name":"High School","order":4,"active":true},"s05":{"id":"s05","client":"East Williston","name":"Wheatley HS","order":5,"active":true},"s06":{"id":"s06","client":"East Williston","name":"Northside","order":6,"active":true},"s07":{"id":"s07","client":"East Williston","name":"Willits Road","order":7,"active":true},"s08":{"id":"s08","client":"Carle Place SD","name":"Cherry Lane School","order":8,"active":true},"s09":{"id":"s09","client":"Carle Place SD","name":"Middle /High School","order":9,"active":true},"s10":{"id":"s10","client":"Carle Place SD","name":"Rushmore School","order":10,"active":true},"s11":{"id":"s11","client":"Freeport UFSD","name":"Centralized Admin/Field","order":11,"active":true},"s12":{"id":"s12","client":"Freeport UFSD","name":"LOCAL ARCHER NVR 1","order":12,"active":true},"s13":{"id":"s13","client":"Freeport UFSD","name":"LOCAL ARCHER NVR 2","order":13,"active":true},"s14":{"id":"s14","client":"Freeport UFSD","name":"LOCAL Atkinson - NVR 1","order":14,"active":true},"s15":{"id":"s15","client":"Freeport UFSD","name":"LOCAL Atkinson - NVR 2","order":15,"active":true},"s16":{"id":"s16","client":"Freeport UFSD","name":"LOCAL - Bayview - NVR 1","order":16,"active":true},"s17":{"id":"s17","client":"Freeport UFSD","name":"LOCAL - Bayview - NVR 2","order":17,"active":true},"s18":{"id":"s18","client":"Freeport UFSD","name":"LOCAL - Columbus - NVR 1","order":18,"active":true},"s19":{"id":"s19","client":"Freeport UFSD","name":"LOCAL Dodd MS - NVR 1","order":19,"active":true},"s20":{"id":"s20","client":"Freeport UFSD","name":"LOCAL Dodd MS - NVR 2","order":20,"active":true},"s21":{"id":"s21","client":"Freeport UFSD","name":"LOCAL - Giblyn - NVR 1","order":21,"active":true},"s22":{"id":"s22","client":"Freeport UFSD","name":"LOCAL High School - NVR 1","order":22,"active":true},"s23":{"id":"s23","client":"Freeport UFSD","name":"LOCAL High School - NVR 2","order":23,"active":true},"s24":{"id":"s24","client":"Freeport UFSD","name":"LOCAL High School - NVR 3","order":24,"active":true},"s25":{"id":"s25","client":"Freeport UFSD","name":"LOCAL - New Vision - NVR 1","order":25,"active":true},"s26":{"id":"s26","client":"Floral Park-Bellerose SD","name":"Floral Park-Bellerose - NVR 1","order":26,"active":true},"s27":{"id":"s27","client":"Floral Park-Bellerose SD","name":"Floral Park-Bellerose - NVR 2","order":27,"active":true},"s28":{"id":"s28","client":"Floral Park-Bellerose SD","name":"John C. Lewis - NVR 1","order":28,"active":true},"s29":{"id":"s29","client":"The Viscardi Center","name":"NCDDW-VLC-01","order":29,"active":true},"s30":{"id":"s30","client":"The Viscardi Center","name":"NCDDW-VLC-02","order":30,"active":true},"s31":{"id":"s31","client":"North Bellmore","name":"North Bellmore - NVR 1","order":31,"active":true},"s32":{"id":"s32","client":"North Bellmore","name":"North Bellmore - NVR 2","order":32,"active":true},"s33":{"id":"s33","client":"Wantagh SD","name":"WSD-NCD-DW01","order":33,"active":true},"s34":{"id":"s34","client":"Wantagh SD","name":"WSD-NCD-DW02","order":34,"active":true},"s35":{"id":"s35","client":"Wantagh SD","name":"WSD-NCD-DW03","order":35,"active":true}},"days":{"2026-11-18":{"rows":{"s01":{"down":1,"time":"11:20","notes":"HES - 02 - (NEW)","by":"Hannan"},"s02":{"down":4,"time":"11:19","notes":"178.MS-Ext-Basketball Courts , 179.MS-Ext-Manor Playground North , 180.MS-Ext-Manor Playground East , MS - 10 - (NEW) (This is a trench waiting to be installed for new power ) Charlie","by":"Hannan"},"s03":{"down":2,"time":"11:27","notes":"MES14- BLACKTOP, 327.MES INT,","by":"Hannan"},"s04":{"down":0,"time":"11:27","notes":"","by":"Hannan"},"s05":{"down":2,"time":"11:48","notes":"WH EXT Student Parking.21 , WH INT 150 Corridor (157) .26","by":"Hannan"},"s06":{"down":0,"time":"11:48","notes":"","by":"Hannan"},"s07":{"down":2,"time":"11:48","notes":"WL EXT Staff Parking.17B , WL EXT Main Entrance .16","by":"Hannan"},"s08":{"down":0,"time":"11:15","notes":"","by":"Hannan"},"s09":{"down":1,"time":"11:16","notes":"108. HSMS ScoreBoard.","by":"Hannan"},"s10":{"down":0,"time":"11:17","notes":"","by":"Hannan"},"s11":{"down":0,"time":"10:44","notes":"","by":"Hannan"},"s12":{"down":1,"time":"10:45","notes":"Archer - 121 - 3-4 Grade Hallway","by":"Hannan"},"s13":{"down":0,"time":"10:46","notes":"","by":"Hannan"},"s14":{"down":0,"time":"10:47","notes":"","by":"Hannan"},"s15":{"down":0,"time":"10:48","notes":"","by":"Hannan"},"s16":{"down":0,"time":"10:49","notes":"","by":"Hannan"},"s17":{"down":0,"time":"10:49","notes":"","by":"Hannan"},"s18":{"down":1,"time":"10:52","notes":"Columbus - 18 - Playground Equipment PTZ ,","by":"Hannan"},"s19":{"down":0,"time":"11:03","notes":"","by":"Hannan"},"s20":{"down":0,"time":"11:03","notes":"","by":"Hannan"},"s21":{"down":0,"time":"11:06","notes":"","by":"Hannan"},"s22":{"down":5,"time":"11:09","notes":"High School - 22 - Press Box Facing Track , High School - 23 - Football East 2 , High School - 24 - Football PTZ , High School - 25 - Football East , High School - 26 - Bleachers","by":"Hannan"},"s23":{"down":0,"time":"11:11","notes":"","by":"Hannan"},"s24":{"down":0,"time":"11:13","notes":"","by":"Hannan"},"s25":{"down":1,"time":"11:13","notes":"new Vision - 210 - 2nd Floor Library Band Room","by":"Hannan"},"s26":{"down":0,"time":"10:30","notes":"","by":"Hannan"},"s27":{"down":1,"time":"10:32","notes":"FPB - 18 - (New)","by":"Hannan"},"s28":{"down":0,"time":"10:32","notes":"","by":"Hannan"},"s29":{"down":0,"time":"10:25","notes":"","by":"Hannan"},"s30":{"down":1,"time":"10:25","notes":"PAR-P2TEMPTABLETONVIF","by":"Hannan"},"s31":{"down":0,"time":"10:22","notes":"","by":"Hannan"},"s32":{"down":0,"time":"10:24","notes":"","by":"Hannan"},"s33":{"down":4,"time":"10:14","notes":"MES4-Main Lobby, MES28-Exterior Rear Building , WES6-Grade 3 Hall 2nd Flr , WES34-GP Staff Entrance","by":"Hannan"},"s34":{"down":2,"time":"10:16","notes":"FL2-SWINGS, FL3-Checkerboard,","by":"Hannan"},"s35":{"down":1,"time":"10:18","notes":"HS40-Track on North End Facing School , HS34-Track on West Side Facing School","by":"Hannan"}}},"2026-11-13":{"rows":{"s01":{"down":1,"time":"02:40","notes":"HES - 02 - (NEW) ,","by":"Charlie"},"s02":{"down":3,"time":"02:40","notes":"178.MS-Ext-Basketball Courts , 179.MS-Ext-Manor Playground North , 180.MS-Ext-Manor Playground East , (This is a trench waiting to be installed for new power ) Charlie","by":"Charlie"},"s03":{"down":3,"time":"02:40","notes":"MES 09, MES14- BLACKTOP, 327.MES INT,","by":"Charlie"},"s04":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s05":{"down":2,"time":"02:40","notes":"WH EXT Student Parking.21 , WH INT 150 Corridor (157) .26","by":"Charlie"},"s06":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s07":{"down":1,"time":"02:40","notes":"WL EXT Staff Parking.17B ,","by":"Charlie"},"s08":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s09":{"down":1,"time":"02:40","notes":"108. HSMS ScoreBoard.","by":"Charlie"},"s10":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s11":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s12":{"down":1,"time":"02:40","notes":"Archer - 121 - 3-4 Grade Hallway","by":"Charlie"},"s13":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s14":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s15":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s16":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s17":{"down":1,"time":"02:40","notes":"Bayview - Door Intercom","by":"Charlie"},"s18":{"down":1,"time":"","notes":"Columbus - 18 - Playground Equipment PTZ ,","by":"Charlie"},"s19":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s20":{"down":1,"time":"02:40","notes":"Dodd - 7B - Church Street Field South PTZ","by":"Charlie"},"s21":{"down":1,"time":"02:40","notes":"Giblyn - 05 - SW Quad / Parking Lot / Playground ,","by":"Charlie"},"s22":{"down":5,"time":"02:40","notes":"High School - 22 - Press Box Facing Track , High School - 23 - Football East 2 , High School - 24 - Football PTZ , High School - 25 - Football East , High School - 26 - Bleachers (These cameras will remain offline the press box was redone. ) Charlie","by":"Charlie"},"s23":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s24":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s25":{"down":1,"time":"02:40","notes":"neww Vision - 210 - 2nd Floor Library Band Room","by":"Charlie"},"s26":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s27":{"down":1,"time":"02:40","notes":"FPB - 18 - (New)","by":"Charlie"},"s28":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s29":{"down":1,"time":"02:40","notes":"High School Main Office","by":"Charlie"},"s30":{"down":1,"time":"02:40","notes":"PAR-P2TEMPTABLETONVIF","by":"Charlie"},"s31":{"down":2,"time":"02:40","notes":"NB-Ex-097 Blacktop Central , NB-Ex-100 Main Bus Ent","by":"Charlie"},"s32":{"down":0,"time":"02:40","notes":"","by":"Charlie"},"s33":{"down":4,"time":"02:40","notes":"MES4-Main Lobby, MES28-Exterior Rear Building , WES6-Grade 3 Hall 2nd Flr , WES34-GP Staff Entrance","by":"Charlie"},"s34":{"down":3,"time":"02:40","notes":"FL42 NEW, FL2-SWINGS, FL3-Checkerboard,","by":"Charlie"},"s35":{"down":1,"time":"02:40","notes":"HS40-Track on North End Facing School","by":"Charlie"}}}},"settings":{"defaultRate":0,"footer":"","preparedBy":""}};
+
+// ================= small helpers =================
+const $ = (s, r)=> (r||document).querySelector(s);
+function el(tag, attrs){
+  const e = document.createElement(tag);
+  if(attrs) for(const k in attrs){
+    const v = attrs[k]; if(v == null || v === false) continue;
+    if(k === 'class') e.className = v;
+    else if(k === 'text') e.textContent = v;
+    else if(k.slice(0,2) === 'on') e.addEventListener(k.slice(2), v);
+    else if(k === 'value') e.value = v;
+    else if(k === 'checked') e.checked = !!v;
+    else if(k === 'disabled') e.disabled = !!v;
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for(let i=2;i<arguments.length;i++){
+    [].concat(arguments[i]).forEach(c=>{ if(c == null || c === false) return; e.append(c.nodeType ? c : document.createTextNode(String(c))); });
+  }
+  return e;
+}
+const pad = n=>String(n).padStart(2,'0');
+const dstr = d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const todayStr = ()=>dstr(new Date());
+const nowTime = ()=>{ const d = new Date(); return pad(d.getHours())+':'+pad(d.getMinutes()); };
+const pdate = s=>{ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const addDays = (s,n)=>{ const d = pdate(s); d.setDate(d.getDate()+n); return dstr(d); };
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const fmtDate = s=>{ if(!s) return ''; const d = pdate(s); return DOW[d.getDay()]+', '+MON[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear(); };
+const fmtShort = s=>{ if(!s) return ''; const d = pdate(s); return MON[d.getMonth()]+' '+d.getDate(); };
+const fmtShortY = s=>{ if(!s) return ''; const d = pdate(s); return MON[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear(); };
+const fmtTime = t=>{ if(!t) return ''; const [h,m] = t.split(':').map(Number); return ((h%12)||12)+':'+pad(m)+' '+(h<12?'AM':'PM'); };
+const uid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const money = n=>'$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
+const esc = s=>String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(()=>{ t.style.display = 'none'; }, 2600); }
+function myName(){ try{ return localStorage.getItem('camlog-name') || ''; }catch(e){ return ''; } }
+
+// ================= shared store (field-level patches) =================
+let doc = {}, rev = -1, queue = [], inflight = false, needPull = false, deferred = false, online = true, flushTimer = null;
+const commitFns = new Set();
+function getIn(path){ let o = doc; for(const k of path){ if(o == null || typeof o !== 'object') return undefined; o = o[k]; } return o; }
+function localSet(path, val){
+  let o = doc;
+  for(let i=0;i<path.length-1;i++){ const k = path[i]; if(!o[k] || typeof o[k] !== 'object') o[k] = {}; o = o[k]; }
+  o[path[path.length-1]] = val;
+}
+function localDel(path){
+  let o = doc;
+  for(let i=0;i<path.length-1;i++){ o = o && o[path[i]]; if(!o || typeof o !== 'object') return; }
+  delete o[path[path.length-1]];
+}
+function setP(path, val){ localSet(path, val); queue.push({ op:'set', path, value: val }); schedule(); }
+function delP(path){ localDel(path); queue.push({ op:'del', path }); schedule(); }
+function schedule(ms){ clearTimeout(flushTimer); flushTimer = setTimeout(flush, ms == null ? 350 : ms); setSync(); }
+function setSync(){
+  const s = $('#syncState'); if(!s) return;
+  s.className = !online ? 'off' : '';
+  $('#syncText').textContent = !online ? 'Offline — will keep trying' : (queue.length || inflight) ? 'Saving…' : 'All changes saved';
+}
+async function api(ops){
+  const r = await fetch('/api/camlog', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ops }), keepalive: ops.length < 40 });
+  return r;
+}
+async function flush(){
+  commitFns.forEach(f=>{ try{ f(); }catch(e){} });
+  if(inflight || !queue.length) return;
+  inflight = true;
+  const batch = queue.splice(0, queue.length);
+  try{
+    const r = await api(batch);
+    if(r.status >= 400 && r.status < 500){ toast('Something could not be saved (rejected by server).'); }
+    else if(!r.ok) throw new Error('http '+r.status);
+    else { const j = await r.json(); if(rev >= 0 && j.rev !== rev + 1) needPull = true; rev = j.rev; online = true; }
+  }catch(e){ queue = batch.concat(queue); online = false; inflight = false; setSync(); schedule(3000); return; }
+  inflight = false; online = true; setSync();
+  if(queue.length) schedule(50); else if(needPull){ needPull = false; pull(true); }
+}
+let lastActivity = 0;
+['input','keydown','focusin','change'].forEach(ev=>document.addEventListener(ev, ()=>{ lastActivity = Date.now(); }, true));
+function isTyping(){
+  const a = document.activeElement;
+  // only hold back a refresh while someone is actively using a field; an idle cursor must not freeze updates
+  return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== 'whoName' && Date.now() - lastActivity < 5000);
+}
+async function pull(force){
+  if(inflight || queue.length) return;
+  try{
+    const r = await fetch('/api/camlog' + (force || rev < 0 ? '' : '?since='+rev), { cache:'no-store' });
+    const j = await r.json(); online = true;
+    if(!j.changed && !force && rev >= 0){ setSync(); return; }
+    if(inflight || queue.length) return;        // local edits appeared while we waited; try again later
+    if(isTyping() && rev >= 0){ deferred = true; return; }
+    const first = rev < 0;
+    doc = j.doc || {}; rev = j.rev; deferred = false;
+    if(first && j.rev === 0 && !Object.keys(doc).length && SEED){
+      await api([{ op:'init', value: SEED }]); return pull(true);
+    }
+    setSync(); renderAll();
+  }catch(e){ online = false; setSync(); }
+}
+document.addEventListener('focusout', ()=>{ if(deferred) setTimeout(()=>{ if(!isTyping()) pull(true); }, 250); });
+setInterval(()=>{ if(deferred && !isTyping()) pull(true); }, 1500);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden'){ commitFns.forEach(f=>{ try{ f(); }catch(e){} }); if(queue.length){ const b = queue.splice(0); try{ api(b); }catch(e){} } } else pull(); });
+window.addEventListener('pagehide', ()=>{ commitFns.forEach(f=>{ try{ f(); }catch(e){} }); if(queue.length){ const b = queue.splice(0); try{ api(b); }catch(e){} } });
+setInterval(()=>pull(), 4000);
+
+// ================= model helpers =================
+const S = { tab:'daily', date: todayStr(), wfStage:null, wfQuery:'', billSel:{}, };
+try{ const t = localStorage.getItem('camlog-tab'); if(t) S.tab = t; }catch(e){}
+const settings = ()=>Object.assign({ defaultRate:0, footer:'', preparedBy:'' }, doc.settings || {});
+function sitesAll(){ return Object.values(doc.sites || {}).sort((a,b)=>(a.order||0)-(b.order||0)); }
+function sitesActive(){ return sitesAll().filter(s=>s.active !== false); }
+function clientGroups(list){
+  const order = [], map = {};
+  list.forEach(s=>{ if(!map[s.client]){ map[s.client] = []; order.push(s.client); } map[s.client].push(s); });
+  return order.map(c=>({ client:c, sites:map[c] }));
+}
+function dayRows(date){ return (doc.days && doc.days[date] && doc.days[date].rows) || {}; }
+function dayKeysDesc(){ return Object.keys(doc.days || {}).sort().reverse(); }
+function prevEntry(siteId, date){
+  for(const d of dayKeysDesc()){ if(d >= date) continue; const r = dayRows(d)[siteId]; if(r && r.down != null) return { date:d, rec:r }; }
+  return null;
+}
+function latestEntries(){
+  const out = {};
+  dayKeysDesc().forEach(d=>{ const rows = dayRows(d); Object.keys(rows).forEach(sid=>{ if(!out[sid] && rows[sid].down != null) out[sid] = { date:d, rec:rows[sid] }; }); });
+  return out;
+}
+const tickets = ()=>Object.values(doc.tickets || {});
+const OPEN = ['reported','scheduled'];
+const STAT = { reported:'Reported', scheduled:'Scheduled', completed:'Ready to bill', billed:'Billed', closed:'Closed – no charge' };
+const tnum = t=>'CAM-'+String(t.num||0).padStart(4,'0');
+function openTicketFor(siteId){ return tickets().filter(t=>t.siteId === siteId && OPEN.indexOf(t.status) !== -1).sort((a,b)=>(b.created||0)-(a.created||0))[0] || null; }
+function lastFinished(siteId){
+  return tickets().filter(t=>t.siteId === siteId && OPEN.indexOf(t.status) === -1 && t.completedDate).sort((a,b)=>String(b.completedDate).localeCompare(String(a.completedDate)))[0] || null;
+}
+const sigOf = rec=>rec.down+'|'+String(rec.notes||'').trim().toLowerCase();
+function needsTicketList(){
+  const lat = latestEntries(), out = [];
+  sitesActive().forEach(s=>{
+    const e = lat[s.id]; if(!e || !(e.rec.down > 0)) return;
+    if(openTicketFor(s.id)) return;
+    const lf = lastFinished(s.id); if(lf && e.date <= lf.completedDate) return;
+    const dm = doc.dismiss && doc.dismiss[s.id]; if(dm && dm.sig === sigOf(e.rec)) return;
+    out.push({ site:s, date:e.date, rec:e.rec });
+  });
+  return out;
+}
+function splitCams(notes){
+  const out = []; let cur = '', depth = 0;
+  for(const ch of String(notes||'')){
+    if(ch === '(') depth++; if(ch === ')') depth = Math.max(0, depth-1);
+    if(ch === ',' && depth === 0){ out.push(cur); cur = ''; } else cur += ch;
+  }
+  out.push(cur);
+  return out.map(x=>x.trim()).filter(Boolean);
+}
+function rateOf(t){ const r = t.rate; return (r !== undefined && r !== null && r !== '') ? Number(r) : Number(settings().defaultRate) || 0; }
+const laborOf = t=>(Number(t.hours)||0) * rateOf(t);
+const totalOf = t=>laborOf(t) + (Number(t.materials)||0);
+function addLog(id, text){ const k = 'l'+uid(); setP(['tickets', id, 'log', k], { ts: Date.now(), by: myName(), text }); }
+async function createTicket(site, date, rec){
+  const r = await api([{ op:'inc', path:['counters','ticket'] }]);
+  if(!r.ok) throw new Error('counter');
+  const j = await r.json(); const num = j.results[0];
+  rev = j.rev; needPull = true;
+  const id = 't'+uid();
+  const t = { id, num, siteId:site.id, client:site.client, location:site.name, cameras: splitCams(rec ? rec.notes : '').join('\n') || (rec && rec.notes) || '',
+    status:'reported', reportedDate: date || todayStr(), created: Date.now(), createdBy: myName(), billable:true, notes:'' };
+  setP(['tickets', id], t);
+  addLog(id, 'Ticket created from the daily check' + (date ? ' of '+fmtShort(date) : ''));
+  return t;
+}
+
+// ================= header / tabs =================
+function setBadge(id, n){ const b = $(id); b.textContent = n; b.classList.toggle('zero', !n); }
+function updateBadges(){
+  setBadge('#bMsg', Object.values(doc.messages || {}).filter(m=>m.status === 'new').length);
+  setBadge('#bWf', needsTicketList().length);
+  setBadge('#bBill', tickets().filter(t=>t.status === 'completed' && t.billable !== false).length);
+}
+function showTab(t){
+  S.tab = t; try{ localStorage.setItem('camlog-tab', t); }catch(e){}
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab === t));
+  renderAll();
+}
+function renderAll(){
+  if(rev < 0) return;
+  commitFns.forEach(f=>{ try{ f(); }catch(e){} }); commitFns.clear();
+  updateBadges();
+  const v = $('#view'); const sc = window.scrollY;
+  v.innerHTML = '';
+  ({ daily: renderDaily, messages: renderMessages, workflow: renderWorkflow, billing: renderBilling, setup: renderSetup }[S.tab] || renderDaily)(v);
+  window.scrollTo(0, sc);
+}
+function openModal(node){ const m = $('#modal'); m.innerHTML = ''; m.append(node); $('#ovl').classList.add('open'); }
+function closeModal(){ $('#ovl').classList.remove('open'); $('#modal').innerHTML = ''; renderAll(); }
+
+// ================= DAILY CHECK =================
+function nameNag(){ if(!myName() && !nameNag.done){ nameNag.done = true; toast('Tip: type your name at the top so admin knows who did the check.'); } }
+function setRowField(date, sid, field, val){
+  const p = ['days', date, 'rows', sid, field];
+  if(val === '' || val == null) delP(p); else setP(p, val);
+}
+function stampBy(date, sid){ if(myName()) setP(['days', date, 'rows', sid, 'by'], myName()); nameNag(); }
+
+function paintSummary(){
+  const box = $('#daySummary'); if(!box) return;
+  const rows = dayRows(S.date), act = sitesActive();
+  let checked = 0, down = 0, issues = 0;
+  act.forEach(s=>{ const r = rows[s.id]; if(r && r.down != null){ checked++; if(r.down > 0){ down += r.down; issues++; } } });
+  box.innerHTML = '';
+  box.append(
+    el('span', { class:'chip '+(checked === act.length && act.length ? 'ok' : 'warn'), text: checked+' of '+act.length+' locations checked' }),
+    el('span', { class:'chip '+(down ? 'bad' : (checked ? 'ok' : '')), text: down+' camera'+(down === 1 ? '' : 's')+' down' }),
+    el('span', { class:'chip', text: issues+' location'+(issues === 1 ? '' : 's')+' with issues' })
+  );
+  document.querySelectorAll('tr.client-row').forEach(tr=>{
+    const sites = act.filter(s=>s.client === tr.dataset.client); let c = 0, d = 0;
+    sites.forEach(s=>{ const r = rows[s.id]; if(r && r.down != null){ c++; d += r.down; } });
+    const m = tr.querySelector('.cr-meta'); if(m) m.textContent = c+'/'+sites.length+' checked · '+d+' down';
+  });
+}
+function paintRow(tr, site, date){
+  const rec = dayRows(date)[site.id] || {};
+  tr.classList.toggle('ok', rec.down === 0);
+  tr.classList.toggle('bad', rec.down > 0);
+  const ac = tr.querySelector('td.ac'); ac.innerHTML = '';
+  const prev = prevEntry(site.id, date);
+  if(rec.down == null && prev && prev.rec.down > 0){
+    ac.append(el('button', { class:'btn small', title:'Copy count and notes from the last check', text:'↺ Same as '+fmtShort(prev.date)+' ('+prev.rec.down+' down)', onclick:()=>{
+      setP(['days', date, 'rows', site.id, 'down'], prev.rec.down);
+      if(prev.rec.notes) setP(['days', date, 'rows', site.id, 'notes'], prev.rec.notes);
+      if(date === todayStr()) setP(['days', date, 'rows', site.id, 'time'], nowTime());
+      stampBy(date, site.id); renderAll();
+    } }));
+  }
+  if(rec.down > 0){
+    const t = openTicketFor(site.id);
+    if(t){
+      ac.append(el('div', {}, el('span', { class:'pill '+t.status, text: STAT[t.status] }), ' ', el('a', { class:'link', text: tnum(t), onclick:()=>openTicketModal(t.id) })));
+      if(t.scheduledDate) ac.append(el('div', { class:'muted', text:'Service '+fmtShort(t.scheduledDate)+(t.scheduledTime ? ' · '+t.scheduledTime : '') }));
+    } else {
+      ac.append(el('button', { class:'btn small', text:'+ Service ticket', onclick: async ()=>{
+        try{ const t = await createTicket(site, date, dayRows(date)[site.id]); toast('Created '+tnum(t)); renderAll(); }catch(e){ toast('Could not create the ticket — check your connection.'); }
+      } }));
+    }
+  }
+  if(prev && rec.down != null) ac.append(el('div', { class:'muted', text:'Last check: '+prev.rec.down+' down ('+fmtShort(prev.date)+')' }));
+}
+function buildSiteRow(site, date){
+  const tr = el('tr', { class:'site-row' }); tr.dataset.sid = site.id;
+  const rec = dayRows(date)[site.id] || {};
+  const down = el('input', { type:'number', min:'0', step:'1', inputmode:'numeric', value: rec.down != null ? rec.down : '', 'aria-label':'Cameras down at '+site.name });
+  const time = el('input', { type:'time', value: rec.time || '', 'aria-label':'Time checked' });
+  const notes = el('textarea', { rows:'1', placeholder:'Camera IDs / notes (leave blank when all working)', 'aria-label':'Notes' });
+  notes.value = rec.notes || '';
+  const fit = ()=>{ notes.style.height = 'auto'; notes.style.height = Math.max(32, notes.scrollHeight+2)+'px'; };
+  down.addEventListener('change', ()=>{
+    const v = down.value.trim();
+    if(v === ''){ setRowField(date, site.id, 'down', ''); }
+    else {
+      const n = Math.max(0, Math.floor(Number(v)) || 0); down.value = n;
+      setP(['days', date, 'rows', site.id, 'down'], n);
+      if(!time.value && date === todayStr()){ time.value = nowTime(); setP(['days', date, 'rows', site.id, 'time'], time.value); }
+      stampBy(date, site.id);
+    }
+    paintRow(tr, site, date); paintSummary(); updateBadges();
+  });
+  time.addEventListener('change', ()=>{ setRowField(date, site.id, 'time', time.value); stampBy(date, site.id); });
+  let dirty = false, tmr = null;
+  const commit = ()=>{ clearTimeout(tmr); if(!dirty) return; dirty = false; setRowField(date, site.id, 'notes', notes.value.trim() ? notes.value : ''); stampBy(date, site.id); };
+  commitFns.add(commit);
+  notes.addEventListener('input', ()=>{ dirty = true; fit(); clearTimeout(tmr); tmr = setTimeout(commit, 700); });
+  notes.addEventListener('change', commit);
+  tr.append(el('td', { class:'loc', text: site.name }), el('td', { class:'dn' }, down), el('td', { class:'tm' }, time), el('td', { class:'nt' }, notes), el('td', { class:'ac' }));
+  paintRow(tr, site, date);
+  setTimeout(fit, 0);
+  return tr;
+}
+function renderDaily(v){
+  const date = S.date, act = sitesActive();
+  const dayInput = el('input', { type:'date', value: date, 'aria-label':'Date of check' });
+  dayInput.addEventListener('change', ()=>{ if(dayInput.value){ S.date = dayInput.value; renderAll(); } });
+  v.append(el('div', { class:'bar' },
+    el('button', { class:'btn', text:'◀', title:'Previous day', onclick:()=>{ S.date = addDays(S.date,-1); renderAll(); } }),
+    dayInput,
+    el('button', { class:'btn', text:'▶', title:'Next day', onclick:()=>{ S.date = addDays(S.date,1); renderAll(); } }),
+    el('button', { class:'btn', text:'Today', onclick:()=>{ S.date = todayStr(); renderAll(); } }),
+    el('strong', { text: fmtDate(date) }),
+    el('span', { style:'flex:1' }),
+    el('button', { class:'btn', text:'Download this day (Excel)', onclick:()=>exportDay(date) })
+  ));
+  v.append(el('div', { class:'chips', id:'daySummary', style:'margin-bottom:12px' }));
+  const sub = doc.days && doc.days[date] && doc.days[date].submitted;
+  if(sub){
+    v.append(el('div', { class:'banner' }, el('b', { text:'✓ Submitted to admin' }), el('span', { text: (sub.by ? 'by '+sub.by+' · ' : '')+new Date(sub.ts).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) }),
+      el('button', { class:'btn small', text:'Reopen for edits', onclick:()=>{ delP(['days', date, 'submitted']); renderAll(); } })));
+  }
+  if(!act.length){ v.append(el('div', { class:'empty', text:'No locations yet. Add them on the Setup tab.' })); return; }
+  const tbody = el('tbody');
+  clientGroups(act).forEach(g=>{
+    const head = el('tr', { class:'client-row' }); head.dataset.client = g.client;
+    head.append(el('td', { colspan:'5' },
+      el('span', { text:g.client }), el('span', { class:'cr-meta' }),
+      el('button', { class:'btn small', style:'margin-left:12px', text:'All working (0) for unchecked', title:'Fills 0 for every location of this client that has no entry yet', onclick:()=>{
+        g.sites.forEach(s=>{ const r = dayRows(date)[s.id]; if(!r || r.down == null){ setP(['days', date, 'rows', s.id, 'down'], 0); if(date === todayStr()) setP(['days', date, 'rows', s.id, 'time'], nowTime()); stampBy(date, s.id); } });
+        renderAll();
+      } })));
+    tbody.append(head);
+    g.sites.forEach(s=>tbody.append(buildSiteRow(s, date)));
+  });
+  v.append(el('div', { class:'tbl-wrap' }, el('table', { class:'grid' },
+    el('thead', {}, el('tr', {}, el('th', { text:'Building / Location' }), el('th', { text:'Cameras down' }), el('th', { text:'Time checked' }), el('th', { text:'Notes / Camera IDs' }), el('th', { text:'Service' }))), tbody)));
+  paintSummary();
+
+  const two = el('div', { class:'two', style:'margin-top:18px' });
+  two.append(buildComposer(date));
+  const fin = el('div', { class:'card' }, el('h2', { class:'sec', style:'margin-top:0', text:'Finish the day' }),
+    el('p', { class:'muted', style:'margin:0 0 10px', text:'When every location is entered, submit so admin knows today’s check is complete. You can reopen it if something changes.' }));
+  fin.append(el('button', { class:'btn primary', disabled: !!sub, text: sub ? 'Already submitted' : 'Submit today’s check to admin', onclick:()=>{
+    const rows = dayRows(date); const missing = act.filter(s=>!(rows[s.id] && rows[s.id].down != null)).length;
+    if(missing && !confirm(missing+' location'+(missing === 1 ? ' is' : 's are')+' not checked yet. Submit anyway?')) return;
+    setP(['days', date, 'submitted'], { by: myName(), ts: Date.now() }); nameNag(); renderAll();
+  } }));
+  two.append(fin); v.append(two);
+}
+function exportDay(date){
+  if(typeof XLSX === 'undefined'){ alert('Excel export is not available right now (library did not load).'); return; }
+  const rows = [['Client / District','Building / Location','Date Checked','Time Checked','Cameras Down','Notes / Camera IDs','Checked by']];
+  const dr = dayRows(date);
+  clientGroups(sitesActive()).forEach(g=>g.sites.forEach((s,i)=>{
+    const r = dr[s.id] || {};
+    rows.push([i === 0 ? g.client : '', s.name, date, fmtTime(r.time), r.down != null ? r.down : '', r.notes || '', r.by || '']);
+  }));
+  const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = [{wch:26},{wch:32},{wch:12},{wch:12},{wch:13},{wch:80},{wch:14}];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Daily Checks'); XLSX.writeFile(wb, 'NCD_Daily_Camera_Check_'+date+'.xlsx');
+}
+
+// ================= MESSAGES =================
+const CATS = ['General update','Needs attention','Access / entry issue','Parts or equipment needed','Question for admin'];
+function buildComposer(date){
+  const cat = el('select', {}, CATS.map(c=>el('option', { value:c, text:c })));
+  const site = el('select', {}, el('option', { value:'', text:'— not about one location —' }), sitesActive().map(s=>el('option', { value:s.id, text:s.client+' · '+s.name })));
+  const text = el('textarea', { rows:'4', placeholder:'Anything you want admin to know — access problems, cameras that will stay offline, parts needed, questions…', style:'width:100%' });
+  const err = el('div', { class:'err' });
+  return el('div', { class:'card' }, el('h2', { class:'sec', style:'margin-top:0', text:'Message to admin' }),
+    el('div', { class:'grid2', style:'margin-bottom:8px' }, el('div', { class:'fld', style:'margin:0' }, el('label', { text:'Type' }), cat), el('div', { class:'fld', style:'margin:0' }, el('label', { text:'Location (optional)' }), site)),
+    text, err,
+    el('div', { class:'actions' }, el('button', { class:'btn accent', text:'Send to admin', onclick:()=>{
+      const t = text.value.trim(); if(!t){ err.textContent = 'Type a message first.'; return; }
+      const id = 'm'+uid();
+      setP(['messages', id], { id, ts: Date.now(), by: myName(), date: date || todayStr(), cat: cat.value, siteId: site.value, text: t, status:'new' });
+      nameNag(); toast('Sent to admin'); text.value = ''; err.textContent = ''; updateBadges();
+      if(S.tab === 'messages') renderAll();
+    } })));
+}
+function renderMessages(v){
+  v.append(buildComposer(S.date));
+  const filt = renderMessages.filt || 'open';
+  const bar = el('div', { class:'stages', style:'margin-top:18px' });
+  [['open','Needs a response'],['new','New'],['done','Done'],['all','All']].forEach(([k,l])=>bar.append(el('button', { class:'stage'+(filt === k ? ' active' : ''), text:l, onclick:()=>{ renderMessages.filt = k; renderAll(); } })));
+  v.append(bar);
+  let list = Object.values(doc.messages || {}).sort((a,b)=>b.ts-a.ts);
+  list = list.filter(m=> filt === 'all' ? true : filt === 'open' ? m.status !== 'done' : m.status === filt);
+  if(!list.length){ v.append(el('div', { class:'empty', text: filt === 'done' ? 'Nothing marked done yet.' : 'No messages here.' })); return; }
+  list.forEach(m=>{
+    const site = m.siteId && doc.sites && doc.sites[m.siteId];
+    const box = el('div', { class:'msg '+m.status });
+    box.append(el('div', { class:'mh' }, el('span', { class:'pill '+m.status, text: m.status === 'new' ? 'New' : m.status === 'read' ? 'Read' : 'Done' }), el('span', { class:'cat', text:m.cat }),
+      el('span', { text:(m.by || 'Unnamed')+' · '+new Date(m.ts).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) }),
+      m.date ? el('span', { text:'· for '+fmtShort(m.date) }) : null, site ? el('span', { text:'· '+site.client+' / '+site.name }) : null));
+    box.append(el('div', { class:'mt', text:m.text }));
+    Object.values(m.replies || {}).sort((a,b)=>a.ts-b.ts).forEach(r=>box.append(el('div', { class:'reply' }, el('b', { text:(r.by || 'Admin')+': ' }), r.text)));
+    const rbox = el('div', { style:'display:none;margin-top:8px' }); const rt = el('textarea', { rows:'2', style:'width:100%', placeholder:'Reply…' });
+    rbox.append(rt, el('div', { class:'actions' }, el('button', { class:'btn small primary', text:'Post reply', onclick:()=>{
+      if(!rt.value.trim()) return; const rid = 'r'+uid(); setP(['messages', m.id, 'replies', rid], { ts: Date.now(), by: myName(), text: rt.value.trim() });
+      if(m.status === 'new') setP(['messages', m.id, 'status'], 'read'); renderAll();
+    } })));
+    const acts = el('div', { class:'row', style:'display:flex;gap:6px;margin-top:6px;flex-wrap:wrap' });
+    if(m.status === 'new') acts.append(el('button', { class:'btn small', text:'Mark read', onclick:()=>{ setP(['messages', m.id, 'status'], 'read'); renderAll(); } }));
+    if(m.status !== 'done') acts.append(el('button', { class:'btn small', text:'Mark done', onclick:()=>{ setP(['messages', m.id, 'status'], 'done'); renderAll(); } }));
+    else acts.append(el('button', { class:'btn small', text:'Reopen', onclick:()=>{ setP(['messages', m.id, 'status'], 'read'); renderAll(); } }));
+    acts.append(el('button', { class:'btn small', text:'Reply', onclick:()=>{ rbox.style.display = rbox.style.display === 'none' ? '' : 'none'; if(rbox.style.display === '') rt.focus(); } }));
+    acts.append(el('button', { class:'btn small danger', text:'Delete', onclick:()=>{ if(confirm('Delete this message?')){ delP(['messages', m.id]); renderAll(); } } }));
+    box.append(acts, rbox); v.append(box);
+  });
+}
+
+// ================= SERVICE WORKFLOW =================
+function latestHint(t){
+  const e = latestEntries()[t.siteId]; if(!e) return null;
+  if(e.rec.down === 0 && e.date > (t.reportedDate || '')) return el('div', { class:'hint-ok', text:'Latest check ('+fmtShort(e.date)+'): 0 down — looks resolved' });
+  if(e.rec.down > 0) return el('div', { class:'hint-bad', text:'Latest check ('+fmtShort(e.date)+'): '+e.rec.down+' down' });
+  return null;
+}
+function renderWorkflow(v){
+  const needs = needsTicketList(), tk = tickets();
+  const cnt = k=>tk.filter(t=>t.status === k).length;
+  if(!S.wfStage) S.wfStage = needs.length ? 'needs' : 'reported';
+  const stages = [['needs','Needs a ticket',needs.length],['reported','Reported',cnt('reported')],['scheduled','Scheduled',cnt('scheduled')],['completed','Completed · ready to bill',cnt('completed')],['billed','Billed',cnt('billed')],['closed','Closed · no charge',cnt('closed')]];
+  const bar = el('div', { class:'stages' });
+  stages.forEach(([k,l,n])=>bar.append(el('button', { class:'stage'+(S.wfStage === k ? ' active' : ''), onclick:()=>{ S.wfStage = k; renderAll(); } }, l, el('b', { text:n }))));
+  v.append(bar);
+  const q = el('input', { type:'search', placeholder:'Search client, location, ticket #, camera…', value:S.wfQuery, style:'width:320px;max-width:100%' });
+  q.addEventListener('input', ()=>{ S.wfQuery = q.value; const pos = q.selectionStart; renderAll(); const n = $('#view input[type=search]'); if(n){ n.focus(); n.setSelectionRange(pos,pos); } });
+  const top = el('div', { class:'bar' }, q);
+  v.append(top);
+  const match = s=>!S.wfQuery.trim() || s.toLowerCase().indexOf(S.wfQuery.trim().toLowerCase()) !== -1;
+  const cards = el('div', { class:'cards' });
+  if(S.wfStage === 'needs'){
+    const list = needs.filter(n=>match(n.site.client+' '+n.site.name+' '+(n.rec.notes||'')));
+    if(needs.length > 1) top.append(el('button', { class:'btn accent', text:'Create tickets for all '+needs.length, onclick: async ()=>{
+      if(!confirm('Create a service ticket for each of the '+needs.length+' locations with down cameras?')) return;
+      try{ for(const n of needs){ await createTicket(n.site, n.date, n.rec); } toast('Tickets created'); S.wfStage = 'reported'; renderAll(); }catch(e){ toast('Could not create all tickets — check your connection.'); renderAll(); }
+    } }));
+    if(!list.length) v.append(el('div', { class:'empty', text: needs.length ? 'No matches.' : '🎉 Nothing needs a ticket. Every location with down cameras already has one.' }));
+    list.forEach(n=>{
+      const lf = lastFinished(n.site.id);
+      cards.append(el('div', { class:'tk needs' },
+        el('h3', { text:n.site.client+' — '+n.site.name }),
+        el('div', { class:'meta', text:'Latest check '+fmtShortY(n.date)+' · '+n.rec.down+' camera'+(n.rec.down === 1 ? '' : 's')+' down'+(n.rec.by ? ' · '+n.rec.by : '') }),
+        el('div', { class:'cams', text: splitCams(n.rec.notes).join(' • ') || '(no camera IDs noted)' }),
+        lf ? el('div', { class:'meta', text:'Last service here: '+tnum(lf)+' on '+fmtShort(lf.completedDate) }) : null,
+        el('div', { class:'row' },
+          el('button', { class:'btn small primary', text:'Create ticket', onclick: async ()=>{ try{ const t = await createTicket(n.site, n.date, n.rec); toast('Created '+tnum(t)); renderAll(); openTicketModal(t.id); }catch(e){ toast('Could not create the ticket — check your connection.'); } } }),
+          el('button', { class:'btn small', title:'Hide until the count or notes change (e.g. cameras known to stay offline)', text:'No service needed', onclick:()=>{ setP(['dismiss', n.site.id], { sig: sigOf(n.rec), by: myName(), ts: Date.now(), date:n.date }); renderAll(); } }))));
+    });
+  } else {
+    let list = tk.filter(t=>t.status === S.wfStage).filter(t=>match([tnum(t), t.client, t.location, t.cameras, t.tech, t.po].join(' ')));
+    const cmp = { scheduled:(a,b)=>String(a.scheduledDate||'9').localeCompare(String(b.scheduledDate||'9')), completed:(a,b)=>String(b.completedDate||'').localeCompare(String(a.completedDate||'')) }[S.wfStage] || ((a,b)=>String(b.reportedDate||'').localeCompare(String(a.reportedDate||'')));
+    list.sort(cmp);
+    if(!list.length) v.append(el('div', { class:'empty', text:'No tickets in this stage.' }));
+    list.forEach(t=>{
+      const cams = String(t.cameras||'').split('\n').filter(Boolean);
+      cards.append(el('div', { class:'tk '+t.status, onclick:()=>openTicketModal(t.id) },
+        el('div', { style:'display:flex;justify-content:space-between;gap:8px;align-items:center' }, el('span', { class:'muted', text:tnum(t) }), el('span', { class:'pill '+t.status, text:STAT[t.status] })),
+        el('h3', { text:t.client+' — '+t.location }),
+        el('div', { class:'cams', text: cams.slice(0,3).join(' • ')+(cams.length > 3 ? '  +'+(cams.length-3)+' more' : '') || '(no cameras listed)' }),
+        el('div', { class:'meta', text:['Reported '+fmtShort(t.reportedDate), t.scheduledDate ? 'Scheduled '+fmtShort(t.scheduledDate)+(t.scheduledTime ? ' ('+t.scheduledTime+')' : '') : '', t.completedDate ? 'Completed '+fmtShort(t.completedDate) : '', t.tech || ''].filter(Boolean).join(' · ') }),
+        t.status === 'completed' ? el('div', { class:'meta', text:(t.billable === false ? 'No charge' : (t.hours ? t.hours+' hr · '+money(totalOf(t)) : 'Hours not entered yet')) }) : null,
+        OPEN.indexOf(t.status) !== -1 ? latestHint(t) : null));
+    });
+  }
+  v.append(cards);
+}
+
+// ---- ticket editor ----
+function openTicketModal(id){
+  const T = ()=>doc.tickets && doc.tickets[id]; if(!T()) return;
+  const t = T();
+  const touch = ()=>{ setP(['tickets', id, 'updated'], Date.now()); };
+  const box = el('div');
+  const err = el('div', { class:'err' });
+  const fld = (label, input)=>el('div', { class:'fld' }, el('label', { text:label }), input);
+  const bindIn = (key, opts)=>{
+    opts = opts || {};
+    const type = opts.type || 'text';
+    const i = opts.area ? el('textarea', { rows: opts.rows || '3' }) : el('input', { type, step: opts.step, min: opts.min, placeholder: opts.ph, list: opts.list });
+    i.value = t[key] != null ? t[key] : '';
+    i.addEventListener('change', ()=>{
+      const v = i.value;
+      if(v === '') delP(['tickets', id, key]); else setP(['tickets', id, key], type === 'number' ? Number(v) : v);
+      touch(); refreshTotal();
+    });
+    return i;
+  };
+  const totalBox = el('div', { class:'total' });
+  function refreshTotal(){
+    const x = T(); if(!x) return;
+    totalBox.textContent = x.billable === false ? 'No charge' : (money(laborOf(x))+' labor'+((Number(x.materials)||0) ? ' + '+money(x.materials)+' materials' : '')+'  =  '+money(totalOf(x)));
+  }
+  const statusSel = el('select', {}, Object.keys(STAT).map(k=>el('option', { value:k, text:STAT[k], selected: t.status === k ? true : null })));
+  statusSel.value = t.status;
+  statusSel.addEventListener('change', ()=>{ setP(['tickets', id, 'status'], statusSel.value); addLog(id, 'Status set to "'+STAT[statusSel.value]+'" (manual)'); touch(); openTicketModal(id); updateBadges(); });
+  const billSel = el('select', {}, el('option', { value:'yes', text:'Billable' }), el('option', { value:'no', text:'No charge (covered / warranty)' }));
+  billSel.value = t.billable === false ? 'no' : 'yes';
+  billSel.addEventListener('change', ()=>{ setP(['tickets', id, 'billable'], billSel.value === 'yes'); touch(); refreshTotal(); });
+
+  box.append(
+    el('div', { style:'display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap' },
+      el('div', {}, el('div', { class:'muted', text:tnum(t) }), el('h2', { text:t.client+' — '+t.location })),
+      el('div', { class:'fld', style:'min-width:190px' }, el('label', { text:'Status' }), statusSel)));
+  box.append(el('div', { class:'secbox' }, el('h4', { text:'1 · Reported' }),
+    el('div', { class:'grid2' }, fld('Reported on', bindIn('reportedDate', { type:'date' })), fld('Reported by', el('input', { type:'text', value: t.createdBy || '', disabled:true }))),
+    fld('Cameras down (one per line)', bindIn('cameras', { area:true, rows:'4' })),
+    fld('Internal notes', bindIn('notes', { area:true, rows:'2', ph:'Access info, parts needed, who to contact…' }))));
+  box.append(el('div', { class:'secbox' }, el('h4', { text:'2 · Scheduling' }),
+    el('div', { class:'grid3' }, fld('Service date', bindIn('scheduledDate', { type:'date' })), fld('Time window', bindIn('scheduledTime', { ph:'e.g. 9–11 AM, after 3 PM' })), fld('Technician(s)', bindIn('tech', { list:'techList', ph:'Name' })))));
+  box.append(el('div', { class:'secbox' }, el('h4', { text:'3 · Completion' }),
+    el('div', { class:'grid2' }, fld('Completed on', bindIn('completedDate', { type:'date' })), fld('Hours on site (billable)', bindIn('hours', { type:'number', step:'0.25', min:'0', ph:'e.g. 1.5' }))),
+    fld('Work performed', bindIn('workDone', { area:true, rows:'3', ph:'What was fixed / replaced' }))));
+  box.append(el('div', { class:'secbox' }, el('h4', { text:'4 · Billing' }),
+    el('div', { class:'grid3' }, fld('Billing', billSel), fld('Hourly rate ($)', bindIn('rate', { type:'number', step:'0.01', min:'0', ph:'default: '+(settings().defaultRate || 'not set') })), fld('Materials / parts ($)', bindIn('materials', { type:'number', step:'0.01', min:'0', ph:'0.00' }))),
+    el('div', { class:'grid2' }, fld('PO / reference #', bindIn('po')), fld('Note for accounts payable', bindIn('billNote', { ph:'optional' }))),
+    totalBox));
+  refreshTotal();
+  const logs = Object.values(t.log || {}).sort((a,b)=>b.ts-a.ts);
+  if(logs.length) box.append(el('div', { class:'log' }, logs.map(l=>el('div', { text:new Date(l.ts).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' })+' — '+l.text+(l.by ? ' ('+l.by+')' : '') }))));
+  box.append(err);
+  const acts = el('div', { class:'actions' });
+  acts.append(el('button', { class:'btn small danger', text:'Delete ticket', onclick:()=>{ if(confirm('Delete '+tnum(t)+'? This cannot be undone.')){ delP(['tickets', id]); closeModal(); } } }), el('span', { class:'spacer' }), el('button', { class:'btn', text:'Close', onclick:closeModal }));
+  if(t.status === 'reported') acts.append(el('button', { class:'btn accent', text:'Mark scheduled →', onclick:()=>{
+    const x = T(); if(!x.scheduledDate){ err.textContent = 'Pick the service date first (section 2).'; return; }
+    setP(['tickets', id, 'status'], 'scheduled'); addLog(id, 'Scheduled for '+fmtShortY(x.scheduledDate)+(x.tech ? ' — '+x.tech : '')); touch(); toast('Scheduled'); openTicketModal(id); updateBadges();
+  } }));
+  if(t.status === 'scheduled') acts.append(el('button', { class:'btn accent', text:'Mark completed →', onclick:()=>{
+    const x = T();
+    if(x.billable !== false && !(Number(x.hours) > 0)){ err.textContent = 'Enter the hours on site (section 3) so it can be billed — or set Billing to “No charge”.'; return; }
+    if(!x.completedDate) setP(['tickets', id, 'completedDate'], todayStr());
+    const fin = x.billable === false ? 'closed' : 'completed';
+    setP(['tickets', id, 'status'], fin); addLog(id, fin === 'closed' ? 'Completed — no charge' : 'Completed — '+x.hours+' hr, ready to bill'); touch(); toast(fin === 'closed' ? 'Closed (no charge)' : 'Completed — moved to Billing'); openTicketModal(id); updateBadges();
+  } }));
+  if(t.status === 'completed') acts.append(el('button', { class:'btn accent', text:'Go to Billing →', onclick:()=>{ closeModal(); showTab('billing'); } }));
+  box.append(acts);
+  openModal(box);
+}
+
+// ================= BILLING =================
+const readyTickets = ()=>tickets().filter(t=>t.status === 'completed' && t.billable !== false);
+function byClient(list){
+  const m = {}; list.forEach(t=>{ (m[t.client] = m[t.client] || []).push(t); });
+  return Object.keys(m).sort((a,b)=>a.localeCompare(b)).map(c=>({ client:c, items:m[c].sort((a,b)=>String(a.completedDate||'').localeCompare(String(b.completedDate||''))||(a.num||0)-(b.num||0)) }));
+}
+function renderBilling(v){
+  const ready = readyTickets();
+  const batches = Object.values(doc.batches || {}).sort((a,b)=>b.ts-a.ts);
+  ready.forEach(t=>{ if(S.billSel[t.id] === undefined) S.billSel[t.id] = true; });
+  const chosen = ()=>ready.filter(t=>S.billSel[t.id]);
+  v.append(el('p', { class:'muted', style:'margin:0 0 12px', text:'Completed, billable service calls land here. Check the ones for this billing run, export the PDF for accounts payable, then create a batch so they are marked billed and never double-billed.' }));
+  if(!(Number(settings().defaultRate) > 0)) v.append(el('div', { class:'banner warn' }, el('b', { text:'No default hourly rate set.' }), el('span', { text:'Totals use each ticket’s own rate, or $0.00. Set the default on the Setup tab.' })));
+  if(!ready.length){ v.append(el('div', { class:'empty', text:'Nothing is waiting to be billed. Tickets appear here when they are marked completed.' })); }
+  else {
+    const foot = el('div', { class:'chips', style:'margin:12px 0' });
+    const paint = ()=>{ const c = chosen(); foot.innerHTML = ''; foot.append(el('span', { class:'chip', text:c.length+' selected' }), el('span', { class:'chip ok', text:'Total '+money(c.reduce((a,t)=>a+totalOf(t),0)) })); expBtn.disabled = batchBtn.disabled = !c.length; };
+    const expBtn = el('button', { class:'btn', text:'Preview / export PDF', title:'Opens the print dialog — choose “Save as PDF”. Does not change any ticket.', onclick:()=>printBilling(chosen(), 'Draft — not yet batched') });
+    const batchBtn = el('button', { class:'btn accent', text:'Create billing batch & export PDF', onclick:()=>{
+      const c = chosen(); if(!c.length) return;
+      const missing = c.filter(t=>!(Number(t.hours) > 0) || !(rateOf(t) > 0)).length;
+      if(missing && !confirm(missing+' selected ticket'+(missing === 1 ? ' has' : 's have')+' no hours or no rate (total $0.00). Continue anyway?')) return;
+      const label = prompt('Name for this billing batch:', 'AP '+todayStr()); if(label === null) return;
+      const bid = 'b'+uid(), ts = Date.now();
+      setP(['batches', bid], { id:bid, label: label.trim() || 'AP '+todayStr(), ts, by: myName(), ticketIds: c.map(t=>t.id), total: c.reduce((a,t)=>a+totalOf(t),0) });
+      c.forEach(t=>{ setP(['tickets', t.id, 'status'], 'billed'); setP(['tickets', t.id, 'batchId'], bid); setP(['tickets', t.id, 'billedDate'], todayStr()); addLog(t.id, 'Added to billing batch "'+(label.trim() || 'AP '+todayStr())+'"'); });
+      const lbl = label.trim() || 'AP '+todayStr(); const snapshot = c.slice();
+      c.forEach(t=>{ delete S.billSel[t.id]; });
+      renderAll(); printBilling(snapshot, lbl);
+    } });
+    const all = el('input', { type:'checkbox', checked:true, 'aria-label':'Select all' });
+    all.addEventListener('change', ()=>{ ready.forEach(t=>{ S.billSel[t.id] = all.checked; }); document.querySelectorAll('input.bsel').forEach(i=>{ i.checked = all.checked; }); paint(); });
+    const tbody = el('tbody');
+    byClient(ready).forEach(g=>{
+      tbody.append(el('tr', { class:'cl' }, el('td', { colspan:'11', text:g.client+'  ·  '+money(g.items.reduce((a,t)=>a+totalOf(t),0)) })));
+      g.items.forEach(t=>{
+        const cb = el('input', { type:'checkbox', class:'bsel', checked: !!S.billSel[t.id] });
+        cb.addEventListener('change', ()=>{ S.billSel[t.id] = cb.checked; paint(); });
+        tbody.append(el('tr', {},
+          el('td', {}, cb), el('td', {}, el('a', { class:'link', text:tnum(t), onclick:()=>openTicketModal(t.id) })), el('td', { text:t.location }),
+          el('td', { text:String(t.cameras||'').split('\n').filter(Boolean).join('; ') }), el('td', { text:fmtShort(t.completedDate) }), el('td', { text:t.tech || '' }),
+          el('td', { class:'n'+(Number(t.hours) > 0 ? '' : ' miss'), text: Number(t.hours) > 0 ? String(t.hours) : '—' }),
+          el('td', { class:'n'+(rateOf(t) > 0 ? '' : ' miss'), text: rateOf(t) > 0 ? money(rateOf(t)) : '—' }),
+          el('td', { class:'n', text:money(Number(t.materials)||0) }), el('td', { class:'n', text:money(totalOf(t)) }), el('td', { text:t.po || '' })));
+      });
+    });
+    v.append(el('div', { class:'tbl-wrap' }, el('table', { class:'bill' },
+      el('thead', {}, el('tr', {}, el('th', {}, all), el('th', { text:'Ticket' }), el('th', { text:'Location' }), el('th', { text:'Cameras serviced' }), el('th', { text:'Completed' }), el('th', { text:'Tech' }), el('th', { class:'n', text:'Hours' }), el('th', { class:'n', text:'Rate' }), el('th', { class:'n', text:'Materials' }), el('th', { class:'n', text:'Total' }), el('th', { text:'PO #' }))), tbody)));
+    v.append(foot, el('div', { class:'actions', style:'justify-content:flex-start' }, expBtn, batchBtn));
+    paint();
+  }
+  v.append(el('h2', { class:'sec', text:'Past billing batches' }));
+  if(!batches.length) v.append(el('div', { class:'empty', text:'No batches yet.' }));
+  batches.forEach(b=>{
+    const items = (b.ticketIds || []).map(id=>doc.tickets && doc.tickets[id]).filter(Boolean);
+    v.append(el('div', { class:'card', style:'margin-bottom:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap' },
+      el('div', { style:'flex:1;min-width:220px' }, el('b', { text:b.label }), el('div', { class:'muted', text:new Date(b.ts).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' })+(b.by ? ' · '+b.by : '')+' · '+items.length+' ticket'+(items.length === 1 ? '' : 's')+' · '+money(items.reduce((a,t)=>a+totalOf(t),0)) })),
+      el('button', { class:'btn small', text:'Re-export PDF', onclick:()=>printBilling(items, b.label, new Date(b.ts)) }),
+      el('button', { class:'btn small danger', text:'Undo batch', title:'Puts these tickets back to “Ready to bill”', onclick:()=>{
+        if(!confirm('Undo "'+b.label+'"? Its '+items.length+' tickets go back to Ready to bill.')) return;
+        items.forEach(t=>{ if(t.status === 'billed'){ setP(['tickets', t.id, 'status'], 'completed'); delP(['tickets', t.id, 'batchId']); delP(['tickets', t.id, 'billedDate']); addLog(t.id, 'Billing batch "'+b.label+'" undone'); } });
+        delP(['batches', b.id]); renderAll();
+      } })));
+  });
+}
+function printBilling(items, label, when){
+  if(!items.length){ toast('Nothing to export.'); return; }
+  const groups = byClient(items); const st = settings(); const stamp = (when || new Date()).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+  const grand = items.reduce((a,t)=>a+totalOf(t),0);
+  const head = (sub)=>'<h1>NCD Communications — Billable Service Summary</h1><div class="sub">'+esc(label)+' · '+esc(stamp)+(st.preparedBy || myName() ? ' · Prepared by '+esc(st.preparedBy || myName()) : '')+(sub ? ' · '+esc(sub) : '')+'</div>';
+  let h = '<div class="pr"><div class="pg">'+head('All organizations');
+  h += '<table><thead><tr><th>Organization</th><th class="n">Service calls</th><th class="n">Hours</th><th class="n">Labor</th><th class="n">Materials</th><th class="n">Total</th></tr></thead><tbody>';
+  groups.forEach(g=>{
+    const hrs = g.items.reduce((a,t)=>a+(Number(t.hours)||0),0), lab = g.items.reduce((a,t)=>a+laborOf(t),0), mat = g.items.reduce((a,t)=>a+(Number(t.materials)||0),0);
+    h += '<tr><td>'+esc(g.client)+'</td><td class="n">'+g.items.length+'</td><td class="n">'+hrs+'</td><td class="n">'+money(lab)+'</td><td class="n">'+money(mat)+'</td><td class="n">'+money(lab+mat)+'</td></tr>';
+  });
+  h += '<tr class="sub"><td>Grand total</td><td class="n">'+items.length+'</td><td class="n">'+items.reduce((a,t)=>a+(Number(t.hours)||0),0)+'</td><td class="n">'+money(items.reduce((a,t)=>a+laborOf(t),0))+'</td><td class="n">'+money(items.reduce((a,t)=>a+(Number(t.materials)||0),0))+'</td><td class="n">'+money(grand)+'</td></tr></tbody></table>';
+  if(st.footer) h += '<div class="foot">'+esc(st.footer)+'</div>';
+  h += '</div>';
+  groups.forEach(g=>{
+    h += '<div class="pg">'+head(g.client)+'<h2>'+esc(g.client)+'</h2><table><thead><tr><th>Ticket</th><th>Location</th><th>Cameras serviced</th><th>Service date</th><th>Technician</th><th class="n">Hours</th><th class="n">Rate</th><th class="n">Labor</th><th class="n">Materials</th><th class="n">Total</th><th>PO #</th></tr></thead><tbody>';
+    g.items.forEach(t=>{
+      h += '<tr><td>'+esc(tnum(t))+'</td><td>'+esc(t.location)+'</td><td>'+esc(String(t.cameras||'').split('\n').filter(Boolean).join('; '))+(t.workDone ? '<br><i>'+esc(t.workDone)+'</i>' : '')+'</td><td>'+esc(fmtShortY(t.completedDate))+'</td><td>'+esc(t.tech||'')+'</td><td class="n">'+esc(t.hours||'')+'</td><td class="n">'+money(rateOf(t))+'</td><td class="n">'+money(laborOf(t))+'</td><td class="n">'+money(Number(t.materials)||0)+'</td><td class="n">'+money(totalOf(t))+'</td><td>'+esc(t.po||'')+'</td></tr>';
+    });
+    h += '<tr class="sub"><td colspan="9">Subtotal — '+esc(g.client)+'</td><td class="n">'+money(g.items.reduce((a,t)=>a+totalOf(t),0))+'</td><td></td></tr></tbody></table>';
+    if(st.footer) h += '<div class="foot">'+esc(st.footer)+'</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+  $('#printRoot').innerHTML = h;
+  document.body.classList.add('printing');
+  const done = ()=>{ document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  setTimeout(()=>window.print(), 80);
+}
+
+// ================= SETUP =================
+function saveOrder(list){ list.forEach((s,i)=>{ if(s.order !== i+1) setP(['sites', s.id, 'order'], i+1); }); }
+function flatFromGroups(groups){ return groups.reduce((a,g)=>a.concat(g.sites), []); }
+function moveSite(site, dir){
+  const groups = clientGroups(sitesAll()); const g = groups.find(x=>x.client === site.client); const i = g.sites.findIndex(s=>s.id === site.id); const j = i+dir;
+  if(j < 0 || j >= g.sites.length) return; [g.sites[i], g.sites[j]] = [g.sites[j], g.sites[i]]; saveOrder(flatFromGroups(groups)); renderAll();
+}
+function moveClient(client, dir){
+  const groups = clientGroups(sitesAll()); const i = groups.findIndex(x=>x.client === client); const j = i+dir;
+  if(j < 0 || j >= groups.length) return; [groups[i], groups[j]] = [groups[j], groups[i]]; saveOrder(flatFromGroups(groups)); renderAll();
+}
+function addSite(client, name){
+  const site = { id:'s'+uid(), client, name, order:0, active:true };
+  setP(['sites', site.id], site);
+  const groups = clientGroups(sitesAll().filter(s=>s.id !== site.id));
+  const g = groups.find(x=>x.client === client);
+  if(g) g.sites.push(site); else groups.push({ client, sites:[site] });
+  saveOrder(flatFromGroups(groups));
+}
+function renderSetup(v){
+  const st = settings();
+  const set = (key, val)=>{ setP(['settings', key], val); };
+  const rate = el('input', { type:'number', step:'0.01', min:'0', value: st.defaultRate || '', placeholder:'e.g. 125.00' });
+  rate.addEventListener('change', ()=>set('defaultRate', rate.value === '' ? 0 : Number(rate.value)));
+  const prep = el('input', { type:'text', value: st.preparedBy || '', placeholder:'Name shown on the billing PDF' });
+  prep.addEventListener('change', ()=>set('preparedBy', prep.value.trim()));
+  const foot = el('textarea', { rows:'3', style:'width:100%', placeholder:'Optional text printed at the bottom of each PDF page (remit-to, terms, contact…)' }); foot.value = st.footer || '';
+  foot.addEventListener('change', ()=>set('footer', foot.value));
+  v.append(el('div', { class:'card' }, el('h2', { class:'sec', style:'margin-top:0', text:'Billing settings' }),
+    el('div', { class:'grid2' }, el('div', { class:'fld' }, el('label', { text:'Default hourly rate ($)' }), rate), el('div', { class:'fld' }, el('label', { text:'Prepared by (PDF)' }), prep)),
+    el('div', { class:'fld' }, el('label', { text:'PDF footer note' }), foot)));
+  v.append(el('h2', { class:'sec', text:'Clients & locations' }), el('p', { class:'muted', style:'margin:0 0 10px', text:'This is the list the daily check is built from. Hiding a location keeps its history but removes it from the daily sheet.' }));
+  const groups = clientGroups(sitesAll());
+  groups.forEach((g, gi)=>{
+    const nm = el('input', { type:'text', value:g.client });
+    nm.addEventListener('change', ()=>{ const val = nm.value.trim(); if(!val){ nm.value = g.client; return; } g.sites.forEach(s=>setP(['sites', s.id, 'client'], val)); renderAll(); });
+    const blk = el('div', { class:'card cl-block' });
+    blk.append(el('div', { class:'cl-head' }, nm, el('button', { class:'btn small', text:'▲', disabled: gi === 0, onclick:()=>moveClient(g.client, -1) }), el('button', { class:'btn small', text:'▼', disabled: gi === groups.length-1, onclick:()=>moveClient(g.client, 1) })));
+    g.sites.forEach((s, si)=>{
+      const sn = el('input', { type:'text', class:'nm', value:s.name });
+      sn.addEventListener('change', ()=>{ const val = sn.value.trim(); if(!val){ sn.value = s.name; return; } setP(['sites', s.id, 'name'], val); });
+      const act = el('input', { type:'checkbox', checked: s.active !== false });
+      act.addEventListener('change', ()=>{ setP(['sites', s.id, 'active'], act.checked); renderAll(); });
+      blk.append(el('div', { class:'loc-row'+(s.active === false ? ' off' : '') }, sn, el('label', { class:'muted' }, act, ' Active'),
+        el('button', { class:'btn small', text:'▲', disabled: si === 0, onclick:()=>moveSite(s, -1) }), el('button', { class:'btn small', text:'▼', disabled: si === g.sites.length-1, onclick:()=>moveSite(s, 1) })));
+    });
+    const add = el('input', { type:'text', placeholder:'New location name…', style:'width:300px' });
+    const go = ()=>{ const val = add.value.trim(); if(!val) return; addSite(g.client, val); renderAll(); };
+    add.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); go(); } });
+    blk.append(el('div', { class:'loc-row' }, add, el('button', { class:'btn small', text:'+ Add location', onclick:go })));
+    v.append(blk);
+  });
+  const nc = el('input', { type:'text', placeholder:'New client / district name' }), nl = el('input', { type:'text', placeholder:'First location' });
+  v.append(el('div', { class:'card' }, el('b', { text:'Add a client' }), el('div', { style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px' }, nc, nl,
+    el('button', { class:'btn', text:'+ Add client', onclick:()=>{ if(!nc.value.trim() || !nl.value.trim()){ toast('Enter a client and a first location.'); return; } addSite(nc.value.trim(), nl.value.trim()); renderAll(); } }))));
+}
+
+// ================= INIT =================
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click', ()=>showTab(b.dataset.tab)));
+const whoInput = $('#whoName'); whoInput.value = myName();
+whoInput.addEventListener('change', ()=>{ try{ localStorage.setItem('camlog-name', whoInput.value.trim()); }catch(e){} });
+$('#ovl').addEventListener('mousedown', e=>{ if(e.target.id === 'ovl') closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && $('#ovl').classList.contains('open')) closeModal(); });
+window.addEventListener('beforeunload', e=>{ if(queue.length || inflight){ e.preventDefault(); e.returnValue = ''; } });
+document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab === S.tab));
+fetch('/api/board', { cache:'no-store' }).then(r=>r.json()).then(j=>{
+  const b = JSON.parse(j.value || '{}'); const dl = $('#techList');
+  (b.techs || []).map(t=>t.name).filter(Boolean).sort().forEach(n=>dl.append(el('option', { value:n })));
+}).catch(()=>{});
+pull(true);
+})();
+</script>
+</body>
+</html>
